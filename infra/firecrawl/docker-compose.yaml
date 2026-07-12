@@ -1,0 +1,105 @@
+# A self-hosted Firecrawl, using the published images — no build step, no upstream clone.
+#
+# The official self-host path is `git clone firecrawl && docker compose build`, which compiles
+# the whole thing. This runs `ghcr.io/firecrawl/*` directly instead: same service, minutes
+# faster, and nothing to keep in sync with upstream's tree.
+#
+# searxng is what gives the API its *search* endpoint. Without it Firecrawl can still scrape a
+# URL you hand it, but it cannot discover anything — and a deep-research agent that cannot
+# search is just an agent re-reading your own bookmarks.
+services:
+  playwright-service:
+    image: ghcr.io/firecrawl/playwright-service:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+
+  api:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - PORT=${PORT}
+      - HOST=${HOST}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_RATE_LIMIT_URL=${REDIS_RATE_LIMIT_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - NUQ_DATABASE_URL=${NUQ_DATABASE_URL}
+      - NUQ_RABBITMQ_URL=${NUQ_RABBITMQ_URL}
+      - NUQ_REDIS_URL=${NUQ_REDIS_URL}
+      - USE_DB_AUTHENTICATION=${USE_DB_AUTHENTICATION}
+      - BULL_AUTH_KEY=${BULL_AUTH_KEY}
+      - NUM_WORKERS_PER_QUEUE=${NUM_WORKERS_PER_QUEUE}
+      - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL}
+      - SEARXNG_ENDPOINT=${SEARXNG_ENDPOINT}
+      - BLOCK_MEDIA=${BLOCK_MEDIA}
+      # Firecrawl polices its own resource use: above these thresholds it starts refusing
+      # connections ("Can't accept connection due to RAM/CPU load") and will eventually shut
+      # itself down — cleanly, with exit 0. That is the nastiest failure mode it has, because
+      # the five support containers stay up and `docker compose ps` looks healthy while the
+      # only service that matters is gone. Raise these if you run agent swarms alongside it,
+      # and see `restart: unless-stopped` above, which turns a silent disappearance into a
+      # recovery.
+      - MAX_CPU=${MAX_CPU}
+      - MAX_RAM=${MAX_RAM}
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      playwright-service:
+        condition: service_started
+
+  redis:
+    image: redis:alpine
+    network_mode: host
+    restart: unless-stopped
+    command: redis-server --bind 0.0.0.0
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:17-alpine
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./nuq-postgres/init.sql:/docker-entrypoint-initdb.d/010-nuq.sql:ro
+
+  searxng:
+    image: searxng/searxng:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - SEARXNG_PORT=4080
+      - SEARXNG_BIND_ADDRESS=0.0.0.0:4080
+      - BIND_ADDRESS=0.0.0.0:4080
+    volumes:
+      - ./searxng:/etc/searxng
+
+volumes:
+  postgres_data:

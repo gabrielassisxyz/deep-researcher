@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Bring up a self-hosted Firecrawl, generating its secrets.
+#
+# WHY this is in the repo at all: deep research is impossible without a web *search* tool, so
+# "install Firecrawl" is not an optional extra — it is the one dependency the whole workflow
+# rests on. Leaving the user to find the upstream self-host docs, discover they need searxng
+# for the search endpoint, and work out why the API keeps dying under load is how a tool ends
+# up used only by the person who wrote it.
+#
+# The alternative is Firecrawl's hosted cloud (firecrawl.dev) — an API key and no containers.
+# scripts/setup offers both; this script is only the self-host path.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INFRA="$ROOT/infra/firecrawl"
+ENV_FILE="$INFRA/.env"
+
+command -v docker >/dev/null 2>&1 || {
+    echo "Docker is required: https://docs.docker.com/get-docker/" >&2
+    exit 1
+}
+
+if [ -f "$ENV_FILE" ]; then
+    echo "$ENV_FILE already exists — leaving its secrets alone."
+else
+    echo "Generating secrets into $ENV_FILE ..."
+    pg_pass="$(openssl rand -hex 16)"
+    mq_pass="$(openssl rand -hex 16)"
+    bull_key="$(openssl rand -hex 16)"
+
+    # Each URL embeds its own credential, so substitution has to be per-variable rather than a
+    # blind global replace of __GENERATED__ -- postgres and rabbitmq must not end up sharing a
+    # password just because the placeholder was spelled the same way.
+    sed \
+        -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$pg_pass|" \
+        -e "s|^RABBITMQ_DEFAULT_PASS=.*|RABBITMQ_DEFAULT_PASS=$mq_pass|" \
+        -e "s|^BULL_AUTH_KEY=.*|BULL_AUTH_KEY=$bull_key|" \
+        -e "s|^RABBITMQ_URL=.*|RABBITMQ_URL=amqp://firecrawl:$mq_pass@localhost:5672|" \
+        -e "s|^NUQ_RABBITMQ_URL=.*|NUQ_RABBITMQ_URL=amqp://firecrawl:$mq_pass@localhost:5672|" \
+        -e "s|^DATABASE_URL=.*|DATABASE_URL=postgres://firecrawl:$pg_pass@localhost:5432/firecrawl|" \
+        -e "s|^NUQ_DATABASE_URL=.*|NUQ_DATABASE_URL=postgres://firecrawl:$pg_pass@localhost:5432/firecrawl|" \
+        "$INFRA/.env.example" > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+
+    # searxng ships a placeholder secret in its settings; give this instance its own.
+    sed -i "s|__SEARXNG_SECRET__|$(openssl rand -hex 16)|" "$INFRA/searxng/settings.yml"
+fi
+
+echo
+echo "Starting Firecrawl (6 containers: api, playwright, redis, rabbitmq, postgres, searxng)..."
+docker compose -f "$INFRA/docker-compose.yaml" --env-file "$ENV_FILE" up -d
+
+echo
+echo "Waiting for the API..."
+url="http://localhost:3002"
+for i in $(seq 1 30); do
+    if curl -sf --max-time 3 -o /dev/null "$url/" 2>/dev/null; then
+        echo "  up at $url"
+        break
+    fi
+    [ "$i" -eq 30 ] && { echo "  did not come up. Check: docker compose -f $INFRA/docker-compose.yaml logs api" >&2; exit 1; }
+    sleep 2
+done
+
+# Liveness is not the test that matters. `/` returning 200 only proves the process started;
+# search is the endpoint deep research actually depends on, and it is the one that breaks when
+# searxng is misconfigured -- silently, while the API still answers.
+echo
+echo "Verifying search actually works..."
+hits="$(curl -s --max-time 45 -X POST "$url/v2/search" \
+    -H 'Content-Type: application/json' \
+    -d '{"query":"firecrawl self hosted","limit":2}' 2>/dev/null \
+    | python3 -c 'import sys,json;print(len((json.load(sys.stdin).get("data") or {}).get("web") or []))' 2>/dev/null || echo 0)"
+
+if [ "$hits" -gt 0 ]; then
+    echo "  search returned $hits results — Firecrawl is genuinely usable."
+    echo
+    echo "Now run: scripts/setup"
+else
+    echo "  API is up but SEARCH RETURNED NOTHING." >&2
+    echo "  Scraping will work; discovery will not, and deep research needs discovery." >&2
+    echo "  Check searxng:  docker compose -f $INFRA/docker-compose.yaml logs searxng" >&2
+    exit 1
+fi

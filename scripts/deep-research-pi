@@ -24,6 +24,34 @@ fi
 # shellcheck disable=SC1090
 . "$CONF"
 
+export FIRECRAWL_API_URL="${FIRECRAWL_API_URL:-http://localhost:3002}"
+export FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}"
+
+# pi-mcp-extension does NOT expand placeholders in .pi/mcp.json -- not `{env:VAR}`, not
+# `${VAR}`. It passes the literal string through to firecrawl-mcp, which rejects it with a
+# bare "Invalid URL" and no hint as to why. (opencode's config DOES expand `{env:VAR}`, which
+# is exactly the sort of difference that makes a tool work on its author's machine and nowhere
+# else.) So the file is generated from the config rather than templated: one source of truth,
+# and the cloud path works without hand-editing JSON.
+mkdir -p "$ROOT/.pi"
+cat > "$ROOT/.pi/mcp.json" <<EOF
+{
+  "settings": { "toolPrefix": "mcp", "requestTimeoutMs": 60000, "maxRetries": 3 },
+  "mcpServers": {
+    "firecrawl": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_URL": "$FIRECRAWL_API_URL",
+        "FIRECRAWL_API_KEY": "$FIRECRAWL_API_KEY"
+      },
+      "lifecycle": "eager"
+    }
+  }
+}
+EOF
+
 # The config's selector is `pi:<model>`; strip the harness prefix for pi's own --model flag.
 MODEL="${DEEP_RESEARCH_MODEL:-${RESEARCH_MODEL#pi:}}"
 

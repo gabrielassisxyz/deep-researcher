@@ -14,6 +14,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF="$ROOT/.deep-research.conf"
+FIRECRAWL_KEY=""
 
 ask() { # prompt, default -> answer on stdout
     local reply
@@ -44,13 +45,36 @@ echo "--- Web search (Firecrawl) ---"
 echo "Research without a search tool is not research: the agent can only re-read URLs you"
 echo "already handed it. This workflow refuses to run without one."
 echo
-FIRECRAWL_URL="$(ask 'Firecrawl API URL:' 'http://localhost:3002')"
+FIRECRAWL_URL="$(ask 'Firecrawl API URL (blank if you have none yet):' 'http://localhost:3002')"
 
-if curl -sf --max-time 5 -o /dev/null "$FIRECRAWL_URL/" 2>/dev/null < /dev/null; then
+if [ -n "$FIRECRAWL_URL" ] && curl -sf --max-time 5 -o /dev/null "$FIRECRAWL_URL/" 2>/dev/null < /dev/null; then
     echo "  reachable."
 else
-    echo "  NOT reachable. Research runs will refuse to start until it is."
-    echo "  (Self-hosted: docker compose -f ~/firecrawl/docker-compose.yaml up -d api)"
+    echo "  Not reachable. Two ways to get one:"
+    echo
+    echo "    1. Self-host  — scripts/install-firecrawl brings up 6 containers (api, playwright,"
+    echo "                    redis, rabbitmq, postgres, searxng) and generates their secrets."
+    echo "                    Free, private, no rate limit; costs you RAM."
+    echo "    2. Cloud      — an API key from firecrawl.dev. No containers, has a free tier,"
+    echo "                    and your queries go to someone else's servers."
+    echo
+    case "$(ask 'Install the self-hosted stack now? (y/N/cloud)' 'N')" in
+        y|Y)
+            echo
+            "$ROOT/scripts/install-firecrawl" < /dev/null || {
+                echo "Install failed. Fix it, then re-run scripts/setup." >&2
+                exit 1
+            }
+            FIRECRAWL_URL="http://localhost:3002"
+            ;;
+        cloud|c|C)
+            FIRECRAWL_URL="$(ask 'Cloud API URL:' 'https://api.firecrawl.dev')"
+            FIRECRAWL_KEY="$(ask 'Your firecrawl.dev API key:' '')"
+            ;;
+        *)
+            echo "  Continuing without one. Research runs will refuse to start until it exists."
+            ;;
+    esac
 fi
 echo
 
@@ -125,6 +149,8 @@ cat > "$CONF" <<EOF
 # Gitignored on purpose: this describes YOUR machine, not this project.
 
 FIRECRAWL_API_URL="$FIRECRAWL_URL"
+# Only used against the hosted cloud; a self-hosted instance needs no key.
+FIRECRAWL_API_KEY="$FIRECRAWL_KEY"
 
 # The model that does the research.
 RESEARCH_MODEL="$RESEARCH_MODEL"
