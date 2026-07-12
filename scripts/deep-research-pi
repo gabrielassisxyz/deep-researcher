@@ -21,8 +21,21 @@ if [ ! -f "$CONF" ]; then
     echo "what you want to use (researching model, second opinion, review panel, depth budget)." >&2
     exit 2
 fi
+# The environment wins over the config file. Sourcing the config *after* reading the
+# environment would silently clobber an explicit `FIRECRAWL_API_URL=... ./deep-research-pi`
+# — the override would appear to work, be ignored, and the run would quietly proceed against
+# whatever the file said. That is how a dependency check ends up checking the wrong thing:
+# pointing the URL at a dead port to test the guard would test the live one instead.
+_env_url="${FIRECRAWL_API_URL:-}"
+_env_key="${FIRECRAWL_API_KEY:-}"
+_env_model="${DEEP_RESEARCH_MODEL:-}"
+
 # shellcheck disable=SC1090
 . "$CONF"
+
+[ -n "$_env_url" ] && FIRECRAWL_API_URL="$_env_url"
+[ -n "$_env_key" ] && FIRECRAWL_API_KEY="$_env_key"
+[ -n "$_env_model" ] && RESEARCH_MODEL="$_env_model"
 
 export FIRECRAWL_API_URL="${FIRECRAWL_API_URL:-http://localhost:3002}"
 export FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}"
@@ -53,7 +66,7 @@ cat > "$ROOT/.pi/mcp.json" <<EOF
 EOF
 
 # The config's selector is `pi:<model>`; strip the harness prefix for pi's own --model flag.
-MODEL="${DEEP_RESEARCH_MODEL:-${RESEARCH_MODEL#pi:}}"
+MODEL="${RESEARCH_MODEL#pi:}"  # env override already folded in above
 
 if [ "$#" -eq 0 ]; then
     echo "Usage: scripts/deep-research-pi '<research request>'" >&2
@@ -65,12 +78,26 @@ if [ "$#" -eq 0 ]; then
     exit 2
 fi
 
+# The config outlives the machine it describes. Swap a model out of LiteLLM and the conf
+# still names it — pi then fails with its own error, about a model, deep inside a run the
+# user thought was starting. Check it against what the machine actually serves, now.
+if ! pi --list-models 2>/dev/null | awk -v m="$MODEL" '$1 == "litellm" && $2 == m { found = 1 } END { exit !found }'; then
+    echo "The model in $CONF is '$MODEL', and LiteLLM does not serve it." >&2
+    echo >&2
+    echo "It serves:" >&2
+    pi --list-models 2>/dev/null | awk '$1 == "litellm" { print "  " $2 }' >&2
+    echo >&2
+    echo "Re-run scripts/setup to pick one, or set DEEP_RESEARCH_MODEL for this run." >&2
+    exit 1
+fi
+
 # Firecrawl shuts itself down under memory pressure and exits 0, so a dead API looks like a
 # clean stack. Check the search endpoint, not just liveness: a 200 on / only proves the
 # process is up, while search is the thing the research actually depends on.
 if ! curl -sf --max-time 5 -o /dev/null "${FIRECRAWL_API_URL:-http://localhost:3002}/"; then
     echo "Firecrawl is not answering at ${FIRECRAWL_API_URL:-http://localhost:3002}." >&2
-    echo "Start it:  docker compose -f ~/firecrawl/docker-compose.yaml up -d api" >&2
+    echo "Start it:   scripts/install-firecrawl" >&2
+    echo "Or point at a hosted one:  scripts/setup" >&2
     exit 1
 fi
 

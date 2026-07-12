@@ -20,6 +20,22 @@ command -v docker >/dev/null 2>&1 || {
     exit 1
 }
 
+# If a Firecrawl is already answering, use it. Standing up a second one would be actively
+# harmful: this compose runs on `network_mode: host`, so a second stack fights the first for
+# ports 3002/5432/5672/6379 and both end up in a bad state. And plenty of people already have
+# one -- I did, at ~/firecrawl, long before this repo shipped a compose file of its own.
+#
+# infra/firecrawl/ is a recipe for people who have no Firecrawl. It is not a claim on the one
+# you already run.
+URL="${FIRECRAWL_API_URL:-http://localhost:3002}"
+if curl -sf --max-time 5 -o /dev/null "$URL/" 2>/dev/null; then
+    echo "A Firecrawl is already answering at $URL — nothing to install."
+    echo
+    echo "Point the tool at it with:  scripts/setup"
+    echo "(To use this repo's own stack instead, stop that one first: it binds the host network.)"
+    exit 0
+fi
+
 if [ -f "$ENV_FILE" ]; then
     echo "$ENV_FILE already exists — leaving its secrets alone."
 else
