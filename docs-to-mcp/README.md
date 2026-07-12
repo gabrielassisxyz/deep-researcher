@@ -1,8 +1,11 @@
 # docs-to-mcp
 
-Crawl a documentation site with a self-hosted [Firecrawl](https://github.com/firecrawl/firecrawl)
-instance, normalize the pages into a local corpus, and expose them through a small
-[FastMCP](https://github.com/jlowin/fastmcp) server.
+Turn a documentation site into an MCP server your coding agent can search.
+
+Crawl the docs once with [Firecrawl](https://github.com/firecrawl/firecrawl), normalize the
+pages into a local corpus, and serve them over
+[FastMCP](https://github.com/jlowin/fastmcp) — so the agent queries the *real* docs instead
+of recalling a version of them from training data.
 
 ## Pipeline
 
@@ -16,10 +19,15 @@ CLI (`docs-to-mcp crawl`) and the MCP `refresh_docs` tool.
 
 ## Requirements
 
-- A running Firecrawl API (the repo's `~/firecrawl` Docker compose exposes it on
-  `http://localhost:3002`).
-- Environment: `FIRECRAWL_API_URL` (default `http://localhost:3002`) and optional
-  `FIRECRAWL_API_KEY`.
+Python 3.11+, [uv](https://docs.astral.sh/uv/), and **a Firecrawl API** — either one works:
+
+- **Hosted** — an API key from [firecrawl.dev](https://firecrawl.dev) (has a free tier).
+  Set `FIRECRAWL_API_URL=https://api.firecrawl.dev` and `FIRECRAWL_API_KEY=<key>`.
+- **Self-hosted** — follow Firecrawl's
+  [self-host guide](https://docs.firecrawl.dev/contributing/self-host). It defaults to
+  `http://localhost:3002`, which is what this tool assumes when `FIRECRAWL_API_URL` is unset.
+  Make sure the search backend (searxng) is up: without it Firecrawl can scrape a URL you
+  hand it but cannot discover pages.
 
 ## Usage
 
@@ -31,7 +39,17 @@ uv run docs-to-mcp crawl https://opencode.ai/docs --slug opencode-docs --max-pag
 
 # Serve the captured corpus over MCP (stdio)
 uv run docs-to-mcp serve --slug opencode-docs
+
+# Rebuild the search index from pages already captured — no network, no re-crawl
+uv run docs-to-mcp reindex --slug opencode-docs
 ```
+
+### When search says the index is stale
+
+If a query fails with *"the index was built by an older version"*, your captured pages are
+fine — only the index predates a schema change. Run `reindex` (seconds, offline). **Do not
+re-crawl**: that would re-fetch every page and spend real Firecrawl budget to repair
+something purely local.
 
 ## Category grouping (MediaWiki)
 
