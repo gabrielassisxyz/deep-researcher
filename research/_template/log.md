@@ -19,9 +19,17 @@ budget: "6 rounds / 40 sources"
 A query that returned junk is coverage; a query never logged is indistinguishable from a
 query never run.
 
-| # | Round | Query | Results kept | Results rejected (and why) |
-| --- | --- | --- | --- | --- |
-| 1 | 1 | | | |
+What each entry must carry: the **query as issued**, what it **surfaced**, what was **kept**
+(linked to its source note), and what was **discarded and why**. A table or a numbered list
+both work — the shape is yours, the four facts are not.
+
+```text
+1. `exact query text` -> surfaced foo.com (SEO, rejected), bar.org (kept, [[sources/bar]]).
+2. `another query`    -> JUNK. Nothing relevant. Logged as fruitless.
+```
+
+**Also record the candidate set you discovered** — the units of analysis that were *not* in
+the user's prompt. That list is the difference between research and stenography.
 
 ## Sources Rejected
 

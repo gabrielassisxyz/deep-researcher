@@ -52,42 +52,44 @@ for reviewer in $PANEL; do
     report="$OUT/$name.md"
     printf '  %-28s ' "$reviewer"
 
+    # A reviewer that cannot be invoked is recorded as `blocked`, never silently dropped:
+    # a panel of three that quietly became a panel of two still reports as a panel, and the
+    # consensus rule ("2 or more agree") would then be computed against a denominator that
+    # is a lie.
+    ok=false
     case "$reviewer" in
         pi:*)
-            model="${reviewer#pi:}"
-            if (cd "$ROOT" && timeout 900 pi --print --provider litellm --model "$model" \
-                "$(prompt_for "$reviewer")" >/dev/null 2>&1) && [ -s "$report" ]; then
-                echo "ok"
-            else
-                echo "BLOCKED"
-                printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
-                    "$reviewer" "$ROUND" "$reviewer" "$ROUND" > "$report"
-            fi
+            (cd "$ROOT" && timeout 900 pi --print --provider litellm --model "${reviewer#pi:}" \
+                "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
+            ;;
+        claude:*)
+            (cd "$ROOT" && timeout 900 claude --print --model "${reviewer#claude:}" \
+                --permission-mode acceptEdits "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
+            ;;
+        agy:flash)
+            (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" --model "Gemini 3.5 Flash (High)" \
+                --prompt-interactive "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
             ;;
         agy)
-            if (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" \
-                --prompt-interactive "$(prompt_for agy)" >/dev/null 2>&1) && [ -s "$report" ]; then
-                echo "ok"
-            else
-                echo "BLOCKED"
-                printf -- '---\ntype: external-review\nreviewer: agy\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — agy — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
-                    "$ROUND" "$ROUND" > "$report"
-            fi
+            (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" \
+                --prompt-interactive "$(prompt_for agy)" >/dev/null 2>&1) && ok=true
             ;;
         codex)
-            if (cd "$ROOT" && timeout 900 codex exec --cd "$ROOT" --sandbox danger-full-access \
-                "$(prompt_for codex)" >/dev/null 2>&1) && [ -s "$report" ]; then
-                echo "ok"
-            else
-                echo "BLOCKED"
-                printf -- '---\ntype: external-review\nreviewer: codex\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — codex — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
-                    "$ROUND" "$ROUND" > "$report"
-            fi
+            (cd "$ROOT" && timeout 900 codex exec --cd "$ROOT" --sandbox danger-full-access \
+                "$(prompt_for codex)" >/dev/null 2>&1) && ok=true
             ;;
         *)
-            echo "UNKNOWN reviewer type — skipped"
+            echo "UNKNOWN — not in docs/reviewers.md"
             ;;
     esac
+
+    if $ok && [ -s "$report" ]; then
+        echo "ok"
+    else
+        echo "BLOCKED"
+        printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked, or produced no report.\n' \
+            "$reviewer" "$ROUND" "$reviewer" "$ROUND" > "$report"
+    fi
 done
 
 echo

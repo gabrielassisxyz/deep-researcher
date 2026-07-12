@@ -155,16 +155,25 @@ Ask this before other questions so the user does not assume the research is alre
 Ask:
 
 ```text
-Two optional external checks, before I start. Skip either or both.
+Two optional external checks, before I start. Full reviewer list: docs/reviewers.md
+  frontier:    claude:opus  claude:sonnet  codex (GPT-5.5)  agy (Gemini 3.1 Pro)
+  cheap:       agy:flash  pi:glm-5.2  pi:kimi-k2.7  pi:deepseek-v4-flash-max
+               pi:deepseek-v4-pro-high
 
 1. Second opinion — ONE model re-researches the same questions from scratch, without
-   seeing my dossier. Catches what I never thought to look for.
-   Which model? (e.g. pi:kimi-k2.7, agy, codex — or skip)
+   seeing my dossier. Catches what I never thought to look for. This is a whole second
+   research run, so it is the expensive check. Pick a different lineage than the one
+   doing the research.
+   Which model? (or skip — skipping is normal)
 
 2. Review panel — one or more models critique the finished dossier. Catches what I got
-   wrong. With several, a finding two of them agree on is almost certainly real.
-   Which models? (e.g. agy, pi:glm-5.2, pi:deepseek-v4-pro-high — or skip)
+   wrong. A finding two reviewers independently land on is almost certainly real.
+   Which models? (default: pi:glm-5.2 pi:kimi-k2.7 pi:deepseek-v4-pro-high)
    How many loops? (default 1)
+
+   You may switch the panel off to save money. I will not recommend it: a review is one
+   read of a finished dossier — the cheapest check there is, and the last thing between a
+   confident, well-cited, wrong dossier and a decision made on it.
 ```
 
 The two attack different failures, and the asymmetry in how many models each gets is
@@ -180,10 +189,11 @@ deliberate:
 Rules:
 
 - If the user already specified either setting, do not ask again. Record both in `intake.md` and `research-contract.md`.
-- If the user declines both, continue with the normal single-agent workflow.
+- Available reviewers are listed in `docs/reviewers.md`. Do not offer a model that is not there.
 - Second opinion: exactly one model or harness. It sees the research *questions* only — never your findings, sources, or synthesis.
 - Review panel: one or more models, plus a positive integer loop count (default 1; 2 for high-stakes; hard cap 3 unless the user insists in the same conversation).
-- In non-interactive runs, do not block on this question. Default **both** to disabled unless the prompt explicitly enables them.
+- **Both can be switched off, and either way the dossier says so** — in `log.md` and in the final answer. A dossier that quietly omits that nobody reviewed it reads exactly like one that passed review, which is the more dangerous of the two.
+- In non-interactive runs, do not block on this question. Default **both** to disabled unless the prompt explicitly enables them, and record that they were skipped.
 - **Neither check substitutes for the Gate 5/6 loop.** They run after the research is deep, not instead of it. An external check on a shallow dossier just launders the shallowness.
 
 ### Gate 0: Research Intake Interview
@@ -408,6 +418,16 @@ Only synthesize after the gap analysis and follow-up pass. Write `synthesis.md` 
 - Inferences.
 - Unknowns.
 - Caveats.
+
+**Mandatory section: what the web could not settle.** Every *fit* claim from Gate 4.5 — every
+"is this right **for me**" — goes here, named as unanswerable by research, with the local
+evaluation that *would* answer it: the task set, the scoring, the number of runs. Put the
+same list in `open-questions.md` under "Not Answerable From The Web".
+
+This section is not a disclaimer, it is often **the most valuable thing in the dossier**. If
+the objective was a fit question, then "here is the experiment you must run, and here is why
+no amount of searching substitutes for it" *is* the answer — and burying it under a confident
+recommendation the evidence does not support is the single worst thing this workflow can do.
 
 For decision-oriented research, also write `decision-guide.md`. For non-decision research, skip `decision-guide.md` unless it would genuinely help.
 

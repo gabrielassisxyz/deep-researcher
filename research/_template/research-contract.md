@@ -95,11 +95,13 @@ is another full run's cost. The value is in having *any* independent look, not i
 many.
 
 - Enabled: false
-- Model / harness: (e.g. `pi:kimi-k2.7`, `agy`, `codex`)
+- Model / harness: (one, from `docs/reviewers.md` — prefer a different lineage than the
+  model doing the research)
 - Scope: the key research questions only — never this dossier's findings or sources.
 - Outcome: agreement raises confidence; disagreement becomes a high-impact gap and
   re-enters the Gate 5/6 loop. A unit of analysis it found and we did not is a **coverage
   failure**, and is logged as one.
+- **Skipped is a normal choice** (it doubles the research cost). Say so in `log.md` either way.
 
 ## Review Panel (Gate 8.5) — N models, attacks error
 
@@ -109,12 +111,21 @@ belongs: reviewing is cheap (one read, no crawling), so several models can do it
 certainly real; a finding only one flags is probably that model's bias.
 
 - Enabled: false
-- Models: (e.g. `agy`, `pi:glm-5.2`, `pi:deepseek-v4-pro-high`)
+- Models: (any number, from `docs/reviewers.md`. Default panel:
+  `pi:glm-5.2 pi:kimi-k2.7 pi:deepseek-v4-pro-high` — three labs, all cheap. Prefer
+  different lineages: a panel that shares blind spots agrees with itself about exactly the
+  things it is collectively wrong about.)
 - Maximum loops: 0
 - Consensus rule: a finding raised by **2 or more** reviewers is treated as real and must be
   fixed or explicitly refuted. A finding raised by exactly one is triaged on its merits.
+  Reviewers contradicting each other is not a finding — it is a gap, and goes back to Gate 5/6.
 - Stop condition: stop when no reviewer finds an actionable factual, citation, structure,
   depth, or confidence-calibration issue.
+- **Can be switched off to save money — not recommended.** A review is one read of a finished
+  dossier: the cheapest check available, and the last thing standing between a confident,
+  well-cited, *wrong* dossier and a decision made on it. If it is off, `log.md` and the final
+  answer must say so — an unreviewed dossier that doesn't mention it reads exactly like one
+  that passed.
 
 ## Output Directory
 
