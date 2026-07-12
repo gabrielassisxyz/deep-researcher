@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "Usage: scripts/deep-research-agy-review <research-directory> [round]" >&2
+  echo "Example: scripts/deep-research-agy-review research/llm-model-routing-2026 1" >&2
+  exit 2
+fi
+
+RESEARCH_DIR="$1"
+ROUND="${2:-1}"
+
+cd "$ROOT"
+mkdir -p "$RESEARCH_DIR/review"
+PROMPT_FILE="$RESEARCH_DIR/review/agy-review-prompt-round-$ROUND.md"
+REPORT_FILE="$RESEARCH_DIR/review/agy-review-round-$ROUND.md"
+
+cat > "$PROMPT_FILE" <<PROMPT
+# Agy Deep Research Review Round $ROUND
+
+Read and follow \`agy/prompts/deep-research-review.md\`.
+
+Research directory: \`$RESEARCH_DIR\`
+Review round: $ROUND
+Review report path: \`$REPORT_FILE\`
+
+Write the review report to the requested path. Do not edit the dossier directly.
+PROMPT
+
+agy \
+  --add-dir "$ROOT" \
+  --prompt-interactive "$(cat "$PROMPT_FILE")"

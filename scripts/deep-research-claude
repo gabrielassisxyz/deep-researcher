@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ "$#" -eq 0 ]; then
+  echo "Usage: scripts/deep-research-claude '<research request>'" >&2
+  echo "Example: scripts/deep-research-claude \"$(tr '\n' ' ' < "$ROOT/prompts/examples/llm-models-golden.md" | sed 's/"/\\"/g')\"" >&2
+  exit 2
+fi
+
+cd "$ROOT"
+claude \
+  --append-system-prompt-file "$ROOT/opencode/prompts/deep-research.md" \
+  --add-dir "$ROOT" \
+  "$*"
+

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md"
+  ],
+  "mcp": {
+    "firecrawl": {
+      "type": "local",
+      "command": ["npx", "-y", "firecrawl-mcp"],
+      "environment": {
+        "FIRECRAWL_API_URL": "http://localhost:3002",
+        "FIRECRAWL_API_KEY": "{env:FIRECRAWL_API_KEY}"
+      },
+      "enabled": true,
+      "timeout": 30000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      },
+      "enabled": true,
+      "timeout": 15000
+    }
+  },
+  "tools": {
+    "firecrawl_*": false,
+    "context7_*": false
+  },
+  "agent": {
+    "deep-research": {
+      "mode": "primary",
+      "description": "Runs source-backed deep research and saves an auditable Markdown dossier.",
+      "prompt": "{file:./opencode/prompts/deep-research.md}",
+      "tools": {
+        "firecrawl_*": true,
+        "context7_*": true
+      },
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow"
+      }
+    },
+    "docs-to-mcp": {
+      "mode": "primary",
+      "description": "Crawls a documentation site and builds a focused MCP server over the captured docs.",
+      "prompt": "{file:./opencode/prompts/docs-to-mcp.md}",
+      "tools": {
+        "firecrawl_*": true,
+        "context7_*": true
+      },
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow"
+      }
+    }
+  }
+}
