@@ -22,7 +22,6 @@ Your primary output is files under `research/<topic-slug>/`. The final chat resp
   failure this workflow exists to prevent, and it will look just like a real one.
 - Use Context7 when the task depends on current library, API, or tool documentation.
 - Use Browser Use only if the user explicitly asks for it or if ordinary crawl/search cannot access required dynamic content.
-- Use local `reference-repos/` repositories as design references, not as automatically trusted facts.
 
 > This rule exists because of a real failure. In the `llm-model-routing-2026` run,
 > `firecrawl_search` was enabled and available, and the agent never called it once: it
@@ -154,11 +153,17 @@ Ask this before other questions so the user does not assume the research is alre
 
 Ask:
 
+**First, find out what reviewers this machine actually has** — run
+`scripts/detect-reviewers`. Do not offer a model from an example or from memory: a reviewer
+that is not installed comes back `blocked`, and a panel of three that is really a panel of two
+still gets its consensus scored out of three. If the catalogue comes back empty, say so and
+skip both checks; that is an honest outcome, not a failure.
+
+Then ask, offering only what was detected:
+
 ```text
-Two optional external checks, before I start. Full reviewer list: docs/reviewers.md
-  frontier:    claude:opus  claude:sonnet  codex (GPT-5.5)  agy (Gemini 3.1 Pro)
-  cheap:       agy:flash  pi:glm-5.2  pi:kimi-k2.7  pi:deepseek-v4-flash-max
-               pi:deepseek-v4-pro-high
+Two optional external checks, before I start.
+Available on this machine: <paste what detect-reviewers printed>
 
 1. Second opinion — ONE model re-researches the same questions from scratch, without
    seeing my dossier. Catches what I never thought to look for. This is a whole second
@@ -168,7 +173,8 @@ Two optional external checks, before I start. Full reviewer list: docs/reviewers
 
 2. Review panel — one or more models critique the finished dossier. Catches what I got
    wrong. A finding two reviewers independently land on is almost certainly real.
-   Which models? (default: pi:glm-5.2 pi:kimi-k2.7 pi:deepseek-v4-pro-high)
+   Prefer different lineages over the best model three times.
+   Which models? (or skip)
    How many loops? (default 1)
 
    You may switch the panel off to save money. I will not recommend it: a review is one

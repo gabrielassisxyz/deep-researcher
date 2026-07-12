@@ -22,16 +22,25 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOSSIER="${1:-}"
 ROUND="${2:-1}"
 
-# Default panel: three cheap, independently-trained models. Diversity of training matters
-# more than raw capability here -- three checkpoints of the same family share their blind
-# spots, and a panel that shares blind spots is an expensive way to feel reassured.
-PANEL="${REVIEW_PANEL:-pi:glm-5.2 pi:kimi-k2.7 pi:deepseek-v4-pro-high}"
+# No default panel is hardcoded: which models exist is a fact about YOUR machine, not about
+# this tool. Baking one setup's models in here is how a tool ends up quietly lying to everyone
+# who does not share it -- they pick the model the docs suggested, get a `blocked` reviewer,
+# and have no idea why. Run scripts/detect-reviewers and pass what it finds.
+PANEL="${REVIEW_PANEL:-}"
 
 if [ -z "$DOSSIER" ] || [ ! -d "$ROOT/$DOSSIER" ]; then
-    echo "Usage: scripts/review-panel research/<slug> [round]" >&2
+    echo "Usage: REVIEW_PANEL='<selectors>' scripts/review-panel research/<slug> [round]" >&2
     echo >&2
-    echo "Reviewers come from \$REVIEW_PANEL (default: $PANEL)." >&2
-    echo "Each entry is 'agy', 'codex', or 'pi:<model>'." >&2
+    echo "Selectors: claude:<model>, codex, agy, agy:flash, pi:<model>" >&2
+    echo "Find out what this machine has:  scripts/detect-reviewers" >&2
+    exit 2
+fi
+
+if [ -z "$PANEL" ]; then
+    echo "No panel configured. Set REVIEW_PANEL to the reviewers you want." >&2
+    echo >&2
+    echo "What this machine has:" >&2
+    "$ROOT/scripts/detect-reviewers" >&2
     exit 2
 fi
 

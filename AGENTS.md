@@ -11,7 +11,6 @@ All generated files, comments, identifiers, prompts, and documentation in this r
 
 ## Operating Rules
 
-- Use `reference-repos/` only as local reference material. It is intentionally ignored by git.
 - Prefer narrow, task-specific MCP access. Enable only the tools needed by the selected agent.
 - Treat live data as time-sensitive. Verify current facts before reporting them.
 - Keep research outputs source-backed. Every non-obvious claim should point to a source URL or a local captured artifact.

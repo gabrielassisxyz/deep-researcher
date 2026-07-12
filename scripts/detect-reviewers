@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Ask the machine which reviewers it actually has, instead of trusting a list someone wrote.
+#
+# WHY this exists: docs/reviewers.md used to hardcode one particular setup -- pi, LiteLLM,
+# GLM/Kimi/DeepSeek, agy. That is a description of ONE machine masquerading as a feature of
+# the tool. Anyone else cloning this repo would read that list, pick `pi:glm-5.2`, and get a
+# blocked reviewer and no idea why. A tool that assumes your environment is a tool that lies
+# to everyone else.
+#
+# So the catalogue is detected: what is on the PATH, and (for LiteLLM) what the proxy says it
+# serves. Run it on first use, or whenever the setup changes.
+set -euo pipefail
+
+LITELLM_URL="${LITELLM_URL:-http://localhost:4000}"
+
+echo "Detecting available reviewers on this machine..."
+echo
+
+found=0
+
+check() { # name, selector, note
+    if command -v "$1" >/dev/null 2>&1; then
+        printf '  %-32s %s\n' "$2" "$3"
+        found=$((found + 1))
+        return 0
+    fi
+    return 1
+}
+
+echo "Harnesses:"
+check claude "claude:opus / claude:sonnet" "Claude Code" || true
+check codex  "codex"                        "Codex" || true
+check agy    "agy"                          "Antigravity (see 'agy models' for the model list)" || true
+check pi     "pi"                           "pi — models below depend on its providers" || true
+[ "$found" -eq 0 ] && echo "  (none found on PATH)"
+
+echo
+echo "Models via a local LiteLLM proxy ($LITELLM_URL):"
+if command -v pi >/dev/null 2>&1 && curl -sf --max-time 3 -o /dev/null "$LITELLM_URL/health/liveliness" 2>/dev/null; then
+    # pi already resolves its providers, so ask pi rather than re-deriving the list from
+    # LiteLLM's config: what pi can actually address is what matters, not what is declared.
+    if pi --list-models 2>/dev/null | awk '$1 == "litellm" { print "  pi:" $2 }' | grep . ; then
+        :
+    else
+        echo "  (LiteLLM is up but pi lists no models from it)"
+    fi
+else
+    echo "  (no pi, or no LiteLLM answering at $LITELLM_URL)"
+fi
+
+cat <<'EOF'
+
+Use these selectors in the research contract:
+
+  Second opinion (Gate 8.4)  exactly ONE, from a different lineage than the researching model.
+  Review panel   (Gate 8.5)  any number. Prefer different lineages over the best model three
+                             times: a panel that shares blind spots agrees with itself about
+                             exactly the things it is collectively wrong about.
+
+A reviewer that cannot be invoked is recorded as `blocked` and the panel carries on — it is
+never silently dropped, because a panel of three that quietly became a panel of two would
+still be scored against a denominator of three.
+EOF
