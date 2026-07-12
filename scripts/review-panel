@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Fan a finished dossier out to N reviewers, then compute what they agree on.
+#
+# WHY this is a script and not a paragraph in the prompt: the last time this workflow asked
+# an agent to do something important on the honour system -- "explore, don't just confirm
+# the list" -- the agent didn't, and nothing noticed for two months. Depth got fixed by
+# making it countable (the search ledger). Triangulation gets the same treatment: the panel
+# is executed here, and the consensus is *computed* from the reviewers' tables, not
+# adjudicated by the agent whose work is under review.
+#
+# The asymmetry with the second opinion (Gate 8.4, one model) is deliberate. A second
+# opinion is a whole research run, so each extra model costs another run. A review is one
+# read of a finished dossier -- cheap enough to buy several, and several is what turns a
+# pile of opinions into a vote.
+#
+# Usage:
+#   scripts/review-panel research/<slug> [round]
+#   REVIEW_PANEL="agy pi:glm-5.2 pi:deepseek-v4-pro-high" scripts/review-panel research/<slug>
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOSSIER="${1:-}"
+ROUND="${2:-1}"
+
+# Default panel: three cheap, independently-trained models. Diversity of training matters
+# more than raw capability here -- three checkpoints of the same family share their blind
+# spots, and a panel that shares blind spots is an expensive way to feel reassured.
+PANEL="${REVIEW_PANEL:-pi:glm-5.2 pi:kimi-k2.7 pi:deepseek-v4-pro-high}"
+
+if [ -z "$DOSSIER" ] || [ ! -d "$ROOT/$DOSSIER" ]; then
+    echo "Usage: scripts/review-panel research/<slug> [round]" >&2
+    echo >&2
+    echo "Reviewers come from \$REVIEW_PANEL (default: $PANEL)." >&2
+    echo "Each entry is 'agy', 'codex', or 'pi:<model>'." >&2
+    exit 2
+fi
+
+OUT="$ROOT/$DOSSIER/review/panel-round-$ROUND"
+mkdir -p "$OUT"
+
+prompt_for() {
+    printf 'Read and follow %s/prompts/reviewer.md.\n\nResearch directory: %s\nReview round: %s\nYour reviewer name: %s\n\nWrite your report to %s/%s.md\n' \
+        "$ROOT" "$ROOT/$DOSSIER" "$ROUND" "$1" "$OUT" "$(echo "$1" | tr ':/' '__')"
+}
+
+echo "Panel: $PANEL"
+echo "Dossier: $DOSSIER (round $ROUND)"
+echo
+
+for reviewer in $PANEL; do
+    name="$(echo "$reviewer" | tr ':/' '__')"
+    report="$OUT/$name.md"
+    printf '  %-28s ' "$reviewer"
+
+    case "$reviewer" in
+        pi:*)
+            model="${reviewer#pi:}"
+            if (cd "$ROOT" && timeout 900 pi --print --provider litellm --model "$model" \
+                "$(prompt_for "$reviewer")" >/dev/null 2>&1) && [ -s "$report" ]; then
+                echo "ok"
+            else
+                echo "BLOCKED"
+                printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
+                    "$reviewer" "$ROUND" "$reviewer" "$ROUND" > "$report"
+            fi
+            ;;
+        agy)
+            if (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" \
+                --prompt-interactive "$(prompt_for agy)" >/dev/null 2>&1) && [ -s "$report" ]; then
+                echo "ok"
+            else
+                echo "BLOCKED"
+                printf -- '---\ntype: external-review\nreviewer: agy\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — agy — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
+                    "$ROUND" "$ROUND" > "$report"
+            fi
+            ;;
+        codex)
+            if (cd "$ROOT" && timeout 900 codex exec --cd "$ROOT" --sandbox danger-full-access \
+                "$(prompt_for codex)" >/dev/null 2>&1) && [ -s "$report" ]; then
+                echo "ok"
+            else
+                echo "BLOCKED"
+                printf -- '---\ntype: external-review\nreviewer: codex\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — codex — Round %s\n\nReviewer could not be invoked or produced no report.\n' \
+                    "$ROUND" "$ROUND" > "$report"
+            fi
+            ;;
+        *)
+            echo "UNKNOWN reviewer type — skipped"
+            ;;
+    esac
+done
+
+echo
+echo "Computing consensus..."
+OUT="$OUT" ROUND="$ROUND" python3 "$ROOT/scripts/consensus.py"
+echo "Wrote $DOSSIER/review/panel-round-$ROUND/consensus.md"

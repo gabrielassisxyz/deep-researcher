@@ -155,28 +155,36 @@ Ask this before other questions so the user does not assume the research is alre
 Ask:
 
 ```text
-Two optional external checks, before I start:
+Two optional external checks, before I start. Skip either or both.
 
-1. Second opinion — a different model researches the same questions independently, and
-   we treat any disagreement as a gap to settle. Catches what I never thought to look for.
-   Which model, if any?
+1. Second opinion — ONE model re-researches the same questions from scratch, without
+   seeing my dossier. Catches what I never thought to look for.
+   Which model? (e.g. pi:kimi-k2.7, agy, codex — or skip)
 
-2. Gemini review — a skeptical reviewer critiques the finished dossier through agy.
-   Catches what I got wrong. If yes, how many loops (default 1)?
+2. Review panel — one or more models critique the finished dossier. Catches what I got
+   wrong. With several, a finding two of them agree on is almost certainly real.
+   Which models? (e.g. agy, pi:glm-5.2, pi:deepseek-v4-pro-high — or skip)
+   How many loops? (default 1)
 ```
 
-The two are complements, not alternatives: the second opinion attacks **omission**, the
-review attacks **error**. For a high-stakes decision, run both.
+The two attack different failures, and the asymmetry in how many models each gets is
+deliberate:
+
+- **The second opinion attacks omission**, and it is **one model** — because it is a *whole
+  research run*, so every extra model costs another full run. What you need is *any*
+  independent look, not several.
+- **The review panel attacks error**, and it takes **N models** — because reviewing is just
+  reading a finished dossier, so it is cheap, and disagreement *between reviewers* is
+  itself signal.
 
 Rules:
 
 - If the user already specified either setting, do not ask again. Record both in `intake.md` and `research-contract.md`.
 - If the user declines both, continue with the normal single-agent workflow.
-- Second opinion: requires naming a model or harness. It sees the research *questions* only — never your findings.
-- Gemini review: requires a positive integer maximum loop count before live research starts. Default 1 loop; 2 for high-stakes or expensive decisions; hard cap 3 unless the user explicitly insists in the same conversation.
-- In non-interactive runs, do not block on this question. Default **both** to disabled unless the prompt explicitly enables them (and, for the review, includes a loop count).
-- The review loop ends early when Gemini finds no actionable factual, citation, structure, depth, or confidence-calibration issues.
-- **Neither check substitutes for the Gate 5/6 loop.** They run after the research is deep, not instead of it.
+- Second opinion: exactly one model or harness. It sees the research *questions* only — never your findings, sources, or synthesis.
+- Review panel: one or more models, plus a positive integer loop count (default 1; 2 for high-stakes; hard cap 3 unless the user insists in the same conversation).
+- In non-interactive runs, do not block on this question. Default **both** to disabled unless the prompt explicitly enables them.
+- **Neither check substitutes for the Gate 5/6 loop.** They run after the research is deep, not instead of it. An external check on a shallow dossier just launders the shallowness.
 
 ### Gate 0: Research Intake Interview
 
@@ -465,22 +473,41 @@ opinion answers the *same question independently*, without seeing your work, and
 Never present a triangulated dossier as more certain than the disagreements justify. Two
 models agreeing on a *fit* claim is still two models guessing.
 
-### Gate 8.5: Optional Gemini Review Loop
+### Gate 8.5: Optional Review Panel (triangulation lives here)
 
-Run this gate only when Gemini review is enabled in `research-contract.md`.
+Run only when a review panel is configured in `research-contract.md`.
 
-For each review loop, up to the configured maximum:
+Reviewers read the **finished dossier** and report findings; they never rewrite it. You own
+the fixes, the false-positive calls, and the final audit.
 
-1. Write `review/agy-review-prompt-round-N.md` using `agy/prompts/deep-research-review.md` as the template.
-2. Ask `agy` to review the dossier as a skeptical external reviewer. The reviewer should not rewrite the dossier directly; it should produce a findings report.
-3. Save the report as `review/agy-review-round-N.md`.
-4. Classify each finding as `critical`, `major`, `minor`, or `non-issue`.
-5. Fix critical and major findings before finalizing unless they are explicitly false positives or blocked by unavailable evidence.
-6. Record fixes and false positives in `review/agy-review-fixes-round-N.md` and `log.md`.
-7. Re-run Gate 8 after applying fixes.
-8. Stop early if the reviewer finds no actionable factual, citation, structure, depth, or confidence-calibration issues.
+**Why several reviewers, when the second opinion gets only one:** reviewing is cheap — one
+read, no crawling — so the marginal cost of a third opinion is small, and **the disagreement
+between reviewers is itself evidence.** A model reviewing alone gives you findings with no
+way to weigh them. Three give you a vote.
 
-If the environment cannot invoke `agy` directly, save the review prompt and mark the Gemini review as `blocked` in `open-questions.md` and `log.md`. Do not claim that external review happened.
+For each loop, up to the configured maximum:
+
+1. Run `scripts/review-panel <dossier-dir>`. It fans the dossier out to every configured
+   model, saves each report to `review/panel-round-N/<model>.md`, and writes a consensus
+   matrix to `review/panel-round-N/consensus.md`.
+2. Apply the **consensus rule**:
+   - **Raised by 2+ reviewers → treat as real.** Fix it, or refute it explicitly in writing
+     with the evidence. Do not quietly disagree with a majority of your reviewers.
+   - **Raised by exactly 1 → triage on merits.** It may be a sharp catch that only one model
+     was equipped to see, or it may be that model's bias. Decide, and say which.
+   - **Reviewers contradict each other on the same claim → that is a gap, not a review
+     finding.** Send it back into the Gate 5/6 loop and let evidence settle it, rather than
+     picking the reviewer you like best.
+3. Classify every finding `critical` / `major` / `minor` / `non-issue`, and record what you
+   fixed and what you rejected — with reasons — in `review/panel-round-N/fixes.md` and in
+   `log.md`.
+4. Re-run Gate 8 after applying fixes.
+5. Stop early when no reviewer raises an actionable factual, citation, structure, depth, or
+   confidence-calibration issue.
+
+If a reviewer cannot be invoked, mark it `blocked` in `log.md` and carry on with the rest of
+the panel. **Never describe a review that did not happen** — and never report a panel's
+verdict as unanimous when one of its members failed to run.
 
 ### Gate 9: Final Answer
 

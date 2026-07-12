@@ -84,23 +84,37 @@ Which of the three does this research have to answer? (Gate 4.5)
       ticked, the dossier's honest headline is likely "measure it locally", and the
       deliverable should include the evaluation design, not a confident recommendation.
 
-## Second Opinion (independent triangulation)
+## Second Opinion (Gate 8.4) — one model, attacks omission
 
-A second model researching the same question *independently*, whose disagreement with the
-first is treated as a finding. Distinct from the Gemini review below, which critiques a
-finished dossier and therefore inherits its blind spots.
+**One** model re-researches the key questions *from scratch*, without seeing this dossier.
+It exists to catch what was never looked for — the candidate that was missed, the angle
+nobody took. A reviewer reading the finished dossier structurally cannot do that.
 
-- Enabled: false
-- Model / harness:
-- Scope: the key research questions, answered without sight of the first dossier.
-- Stop condition: agreements raise confidence; disagreements become high-impact gaps and
-  re-enter the Gate 5/6 loop.
-
-## Gemini Review
+One model, not several: a second opinion is a **whole research run**, so each extra model
+is another full run's cost. The value is in having *any* independent look, not in having
+many.
 
 - Enabled: false
+- Model / harness: (e.g. `pi:kimi-k2.7`, `agy`, `codex`)
+- Scope: the key research questions only — never this dossier's findings or sources.
+- Outcome: agreement raises confidence; disagreement becomes a high-impact gap and
+  re-enters the Gate 5/6 loop. A unit of analysis it found and we did not is a **coverage
+  failure**, and is logged as one.
+
+## Review Panel (Gate 8.5) — N models, attacks error
+
+Reviewers read the **finished dossier** and critique it. This is where triangulation
+belongs: reviewing is cheap (one read, no crawling), so several models can do it, and
+**disagreement between reviewers is itself signal** — a finding all three flag is almost
+certainly real; a finding only one flags is probably that model's bias.
+
+- Enabled: false
+- Models: (e.g. `agy`, `pi:glm-5.2`, `pi:deepseek-v4-pro-high`)
 - Maximum loops: 0
-- Stop condition: stop when the reviewer finds no actionable factual, citation, structure, depth, or confidence-calibration issues.
+- Consensus rule: a finding raised by **2 or more** reviewers is treated as real and must be
+  fixed or explicitly refuted. A finding raised by exactly one is triaged on its merits.
+- Stop condition: stop when no reviewer finds an actionable factual, citation, structure,
+  depth, or confidence-calibration issue.
 
 ## Output Directory
 
