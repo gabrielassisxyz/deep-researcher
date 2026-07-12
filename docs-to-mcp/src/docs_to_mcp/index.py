@@ -14,6 +14,14 @@ from pathlib import Path
 
 from . import frontmatter, paths
 
+# Bump whenever the FTS columns change. An index built by an older version has fewer
+# columns than the queries now ask for, and SQLite reports that as
+# "sqlite3.InterfaceError: column index out of range" -- a message that tells the user
+# nothing, from a failure they cannot act on. Stamping the version lets us say what is
+# actually wrong and how to fix it in two seconds, instead of leaving them to conclude
+# the corpus is corrupt and re-crawl thousands of pages.
+_SCHEMA_VERSION = 2
+
 _CREATE = """
 CREATE VIRTUAL TABLE pages_fts USING fts5(
     page_id UNINDEXED,
@@ -25,6 +33,7 @@ CREATE VIRTUAL TABLE pages_fts USING fts5(
     body,
     tokenize = 'porter unicode61'
 );
+CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 # Column weights for bm25 ranking (a match in the title matters far more than one
@@ -52,6 +61,15 @@ class IndexError_(RuntimeError):
     """Raised when the index cannot be built (e.g. SQLite lacks FTS5)."""
 
 
+class StaleIndexError(IndexError_):
+    """The index on disk was built by an older schema and must be rebuilt.
+
+    Its own type, not a bare IndexError_, so the MCP server can catch exactly this and
+    tell the agent to reindex — rather than surfacing it as a generic failure the agent
+    would most likely "fix" by re-crawling the site.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class SearchHit:
     page_id: str
@@ -74,9 +92,13 @@ def build_index(slug: str, data_root: Path | str = paths.DEFAULT_DATA_ROOT) -> i
     conn = sqlite3.connect(db_path)
     try:
         try:
-            conn.execute(_CREATE)
+            conn.executescript(_CREATE)
         except sqlite3.OperationalError as exc:
             raise IndexError_(f"SQLite FTS5 unavailable: {exc}") from exc
+        conn.execute(
+            "INSERT INTO index_meta (key, value) VALUES ('schema_version', ?)",
+            (str(_SCHEMA_VERSION),),
+        )
         rows = 0
         for line in jsonl.read_text(encoding="utf-8").splitlines():
             record = json.loads(line)
@@ -107,6 +129,7 @@ def search(slug: str, query: str, limit: int = 5, data_root: Path | str = paths.
 
     conn = sqlite3.connect(db_path)
     try:
+        _check_schema(conn, slug)
         # Require all terms first (precise); if nothing matches a multi-word,
         # natural-language query, fall back to any-term and let bm25 rank.
         hits = _run_match(conn, " ".join(terms), limit)
@@ -115,6 +138,31 @@ def search(slug: str, query: str, limit: int = 5, data_root: Path | str = paths.
         return hits
     finally:
         conn.close()
+
+
+def _check_schema(conn: sqlite3.Connection, slug: str) -> None:
+    """Fail with an actionable message when the index predates the current schema.
+
+    Without this the query simply asks for a column the old table does not have, and
+    SQLite answers "column index out of range" -- which reads like a corrupt corpus and
+    invites the user to re-crawl thousands of pages. The corpus is fine. Only the index
+    is stale, and rebuilding it from the pages already on disk takes seconds.
+    """
+    try:
+        row = conn.execute(
+            "SELECT value FROM index_meta WHERE key = 'schema_version'"
+        ).fetchone()
+        found = int(row[0]) if row else 0
+    except sqlite3.OperationalError:
+        found = 0  # index_meta itself predates versioning
+
+    if found != _SCHEMA_VERSION:
+        raise StaleIndexError(
+            f"the index for '{slug}' was built by an older version "
+            f"(schema v{found}, current v{_SCHEMA_VERSION}).\n"
+            f"Your captured pages are fine — only the index is out of date.\n"
+            f"Rebuild it without re-crawling:  docs-to-mcp reindex --slug {slug}"
+        )
 
 
 def _run_match(conn: sqlite3.Connection, match: str, limit: int) -> list[SearchHit]:

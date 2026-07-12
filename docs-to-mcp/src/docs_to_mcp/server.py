@@ -29,6 +29,20 @@ def build_server(slug: str, data_root: Path | str = paths.DEFAULT_DATA_ROOT) -> 
         """Search the captured docs and return ranked matching pages."""
         try:
             hits = index.search(slug, query, limit=limit, data_root=data_root)
+        except index.StaleIndexError as exc:
+            # Caught BEFORE the generic case on purpose. The generic advice is "run
+            # refresh_docs", which re-crawls the entire site -- and an agent handed a
+            # stale index would dutifully do exactly that: thousands of pages and a real
+            # Firecrawl bill, to repair something local that takes two seconds. The pages
+            # on disk are fine. Only the index needs rebuilding.
+            return {
+                "error": str(exc),
+                "next_actions": [
+                    f"Run `docs-to-mcp reindex --slug {slug}` in a shell. "
+                    "Do NOT call refresh_docs — the captured pages are fine and re-crawling "
+                    "would be a slow, expensive way to fix a local index."
+                ],
+            }
         except index.IndexError_ as exc:
             return {"error": str(exc), "next_actions": ["Run refresh_docs to build the corpus."]}
         return {

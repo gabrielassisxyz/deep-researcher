@@ -7,6 +7,7 @@ import sys
 
 from . import paths
 from .crawler import CrawlError
+from .index import IndexError_, build_index
 from .pipeline import DEFAULT_CONCURRENCY, enrich_categories, refresh
 from .sitemap import SitemapError
 
@@ -39,6 +40,14 @@ def main(argv: list[str] | None = None) -> int:
     cats.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY,
                       help=f"Parallel category-page captures (default: {DEFAULT_CONCURRENCY}).")
 
+    # Rebuilding the index is local work over pages already on disk — seconds, no network.
+    # It had no command, so the only visible way out of a stale index was to re-crawl the
+    # whole site: thousands of pages and a lot of someone's Firecrawl budget, to fix
+    # something that never needed the network at all.
+    reindex = sub.add_parser("reindex",
+                             help="Rebuild the search index from the captured pages. No re-crawl.")
+    reindex.add_argument("--slug", required=True, help="Corpus slug to reindex.")
+
     serve = sub.add_parser("serve", help="Serve a captured corpus over MCP (stdio).")
     serve.add_argument("--slug", required=True, help="Corpus slug to serve.")
 
@@ -48,9 +57,21 @@ def main(argv: list[str] | None = None) -> int:
         return _run_crawl(args)
     if args.command == "categories":
         return _run_categories(args)
+    if args.command == "reindex":
+        return _run_reindex(args)
     if args.command == "serve":
         return _run_serve(args)
     return 2
+
+
+def _run_reindex(args: argparse.Namespace) -> int:
+    try:
+        rows = build_index(args.slug, args.data_root)
+    except IndexError_ as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"reindexed {args.slug}: {rows} pages")
+    return 0
 
 
 def _run_crawl(args: argparse.Namespace) -> int:

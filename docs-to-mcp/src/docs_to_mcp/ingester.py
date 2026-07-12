@@ -29,6 +29,27 @@ _LINK_RE = re.compile(r'(!?\[[^\]]*\]\()([^)\s]+)(\s*[^)]*\))')
 # pure in-page anchor.
 _ABSOLUTE_RE = re.compile(r"^(?:[a-z][a-z0-9+.\-]*:|//|#)", re.IGNORECASE)
 
+# Site chrome: navigation affordances that mean nothing once the page is a text file.
+# This corpus exists to be read by a model, and every one of these lines is context
+# window spent on a link nobody can click. One captured MediaWiki wiki carried 14,473
+# "[edit]" markers and 1,085 "Jump to navigation" links across its pages -- paid for on
+# every single query against it, forever.
+#
+# Deliberately conservative: each pattern is anchored to an unmistakable shape (a link
+# whose target is the page's own #mw-head anchor, an [edit] link into a MediaWiki
+# action=edit URL). Prose is never touched. Cutting real content to save tokens would be
+# a far worse trade than leaving some chrome behind -- when in doubt, keep it.
+_CHROME_RES = (
+    # [Jump to navigation](…#mw-head), [Skip to content](…#_top), [Back to top](…)
+    re.compile(r"^\s*\[(?:Jump to|Skip to|Back to)[^\]]*\]\([^)]*\)\s*$", re.MULTILINE | re.IGNORECASE),
+    # MediaWiki section edit links: \[[edit](…action=edit…)] and | [edit source](…)
+    re.compile(r"\\?\[\s*\[edit(?:\s+source)?\]\([^)]*\)\s*(?:\|\s*\[edit\s+source\]\([^)]*\)\s*)?\\?\]"),
+    re.compile(r"\|\s*\[edit(?:\s+source)?\]\([^)]*\)"),
+    re.compile(r"\[edit(?:\s+source)?\]\([^)]*\)"),
+)
+# Collapse the blank-line craters the removals leave behind.
+_BLANK_RUN_RE = re.compile(r"\n{3,}")
+
 
 @dataclass(frozen=True, slots=True)
 class IngestResult:
@@ -52,13 +73,20 @@ def resolve_links(markdown: str, base_url: str) -> str:
     return _LINK_RE.sub(_replace, markdown)
 
 
+def strip_chrome(markdown: str) -> str:
+    """Remove navigation affordances that carry no meaning in a text corpus."""
+    for pattern in _CHROME_RES:
+        markdown = pattern.sub("", markdown)
+    return _BLANK_RUN_RE.sub("\n\n", markdown).strip() + "\n"
+
+
 def normalize(captured: CapturedPage, crawled_at: str, page_id: str | None = None) -> Page:
     """Convert a raw capture into a normalized Page (pure, no IO).
 
     ``page_id`` is passed in when the caller pre-assigned collision-free ids for a
     whole URL set (streaming path); it defaults to deriving from the URL.
     """
-    markdown = resolve_links(captured.markdown, captured.source_url)
+    markdown = strip_chrome(resolve_links(captured.markdown, captured.source_url))
     return Page(
         page_id=page_id or derive_page_id(captured.source_url),
         source_url=captured.source_url,
