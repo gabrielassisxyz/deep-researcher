@@ -138,9 +138,12 @@ Sources kept this round: 1 (Horikawa). Total sources kept: 9.
 
 - G-H1 (agentic-tool RCT on experienced devs): **BLOCKED** — METR is the only team
   running this and declared the design broken. No public alternative.
-- G-H2 (maintainability causal): **BLOCKED, partially mitigated** — Horikawa (MSR '26)
-  adds commit-mined evidence that AI refactoring degrades maintainability metrics in a
-  majority of commits; still no RCT of long-run defect/maintenance cost.
+- G-H2 (maintainability causal): **BLOCKED** — no RCT of long-run defect/maintenance cost
+  exists, and that is what the gap asked for. Horikawa (MSR '26) narrows it with
+  commit-mined evidence that AI refactoring degrades maintainability metrics in a majority
+  of commits, but observational data cannot close a causal question. (Wording corrected:
+  this previously read "BLOCKED, partially mitigated", which reads like a third terminal
+  state. There are two — `resolved` and `blocked` — and this one is blocked.)
 - G-H3 (familiarity isolated): **BLOCKED** — no study isolates familiarity; cross-study
   comparison is the best available.
 - G-H4 (review burden): **BLOCKED** — no measured study found via search; only DORA
