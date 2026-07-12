@@ -7,3 +7,6 @@ __pycache__/
 
 
 # pi's MCP extension is per-user; the server config (.pi/mcp.json) IS committed.
+
+# Your machine, not this project.
+.deep-research.conf

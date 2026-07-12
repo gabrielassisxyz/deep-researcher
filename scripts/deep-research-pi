@@ -14,11 +14,23 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL="${DEEP_RESEARCH_MODEL:-glm-5.2}"
+CONF="$ROOT/.deep-research.conf"
+
+if [ ! -f "$CONF" ]; then
+    echo "No setup found. Run scripts/setup first — it detects what this machine has and asks" >&2
+    echo "what you want to use (researching model, second opinion, review panel, depth budget)." >&2
+    exit 2
+fi
+# shellcheck disable=SC1090
+. "$CONF"
+
+# The config's selector is `pi:<model>`; strip the harness prefix for pi's own --model flag.
+MODEL="${DEEP_RESEARCH_MODEL:-${RESEARCH_MODEL#pi:}}"
 
 if [ "$#" -eq 0 ]; then
     echo "Usage: scripts/deep-research-pi '<research request>'" >&2
-    echo "       DEEP_RESEARCH_MODEL=kimi-k2.7 scripts/deep-research-pi '<request>'" >&2
+    echo >&2
+    echo "Model comes from $CONF (currently: $MODEL). Override with DEEP_RESEARCH_MODEL." >&2
     echo >&2
     echo "Example (the golden prompt):" >&2
     echo "  scripts/deep-research-pi \"\$(cat prompts/examples/self-hosted-coding-model-golden.md)\"" >&2

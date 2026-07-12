@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# First-run setup: detect what this machine has, then ask what you want to use.
+#
+# WHY both halves. Detection answers "what is possible here" -- it is the fix for a tool that
+# hardcodes its author's models and then blocks on everyone else's machine. But possible is
+# not the same as wanted: which of your models should do the researching, whether the extra
+# cost of a second opinion is worth it *to you*, how deep the loop may go before it stops.
+# Those are your calls, and a tool that quietly makes them for you is just a different flavour
+# of assuming.
+#
+# Writes .deep-research.conf (gitignored -- it describes YOUR machine, not this project).
+# Re-run it any time your setup changes.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONF="$ROOT/.deep-research.conf"
+
+ask() { # prompt, default -> answer on stdout
+    local reply
+    printf '%s ' "$1" >&2
+    [ -n "${2:-}" ] && printf '[%s] ' "$2" >&2
+    read -r reply
+    printf '%s' "${reply:-${2:-}}"
+}
+
+# Every subprocess below gets stdin closed (`< /dev/null`). WHY: a child that reads stdin --
+# curl, or a helper script -- swallows an answer meant for the next `ask`, and the whole
+# interview silently shifts by one field. That failure is invisible: the config file it writes
+# is perfectly well-formed, just wrong, with the review models sitting in the loop count.
+
+echo "=== deep-researcher setup ==="
+echo
+
+if [ -f "$CONF" ]; then
+    echo "$CONF already exists:"
+    sed 's/^/  /' "$CONF"
+    echo
+    [ "$(ask 'Overwrite? (y/N)' 'N')" != "y" ] && { echo "Kept."; exit 0; }
+    echo
+fi
+
+# ---------------------------------------------------------------- 1. web search
+echo "--- Web search (Firecrawl) ---"
+echo "Research without a search tool is not research: the agent can only re-read URLs you"
+echo "already handed it. This workflow refuses to run without one."
+echo
+FIRECRAWL_URL="$(ask 'Firecrawl API URL:' 'http://localhost:3002')"
+
+if curl -sf --max-time 5 -o /dev/null "$FIRECRAWL_URL/" 2>/dev/null < /dev/null; then
+    echo "  reachable."
+else
+    echo "  NOT reachable. Research runs will refuse to start until it is."
+    echo "  (Self-hosted: docker compose -f ~/firecrawl/docker-compose.yaml up -d api)"
+fi
+echo
+
+# ---------------------------------------------------------------- 2. catalogue
+echo "--- What this machine has ---"
+"$ROOT/scripts/detect-reviewers" < /dev/null | sed -n '/Harnesses:/,/^$/p;/proxy/,/^$/p'
+echo
+
+# ---------------------------------------------------------------- 3. researcher
+echo "--- The researching model ---"
+echo "A deep run is dozens of tool calls, mostly fetching and summarising. That work does not"
+echo "need a frontier model, and paying frontier prices for it is how deep research gets"
+echo "rationed. Use the expensive models where the *reasoning* is hard."
+echo
+RESEARCH_MODEL="$(ask 'Model for research (selector, e.g. pi:glm-5.2):' 'pi:glm-5.2')"
+echo
+
+# ---------------------------------------------------------------- 4. second opinion
+echo "--- Second opinion (Gate 8.4) — attacks OMISSION ---"
+echo "ONE model re-researches your questions from scratch, without seeing the dossier. It is"
+echo "the only check that can surface the candidate nobody thought to look for — a reviewer"
+echo "reading the finished dossier inherits its blind spots and structurally cannot."
+echo "It is also a whole second research run, so it roughly doubles the cost. Skipping is normal."
+echo
+SECOND_OPINION="$(ask 'Second-opinion model (or "off"), different lineage than the researcher:' 'off')"
+echo
+
+# ---------------------------------------------------------------- 5. review panel
+echo "--- Review panel (Gate 8.5) — attacks ERROR ---"
+echo "N models critique the finished dossier. A finding two of them land on independently is"
+echo "almost certainly real; one that only one raises is triaged on merit. Prefer different"
+echo "lineages over the best model three times: a panel that shares blind spots agrees with"
+echo "itself about exactly the things it is collectively wrong about."
+echo
+echo "You can turn this off. It is not recommended — a review is one read of a finished"
+echo "document, the cheapest check there is, and the last thing standing between a confident,"
+echo "well-cited, WRONG dossier and a decision made on it."
+echo
+REVIEW_PANEL="$(ask 'Panel (space-separated selectors, or "off"):' 'off')"
+REVIEW_LOOPS=1
+[ "$REVIEW_PANEL" != "off" ] && REVIEW_LOOPS="$(ask 'Maximum review loops:' '1')"
+echo
+
+# ---------------------------------------------------------------- 6. depth budget
+echo "--- Depth budget ---"
+echo "The gap loop (Gates 5/6) runs until every high-impact gap is resolved or blocked. This is"
+echo "the ceiling that stops it running forever — not a target to hit. A run that exhausts it"
+echo "must say so rather than presenting itself as complete."
+echo
+MAX_ROUNDS="$(ask 'Maximum rounds:' '6')"
+MAX_SOURCES="$(ask 'Maximum sources:' '40')"
+echo
+
+# Validate before writing. A misaligned interview -- an answer landing one field off -- produces
+# a perfectly well-formed config that is wrong, and nothing downstream would notice: the run
+# would just quietly stop after "pi:glm-5.2" rounds, which is to say immediately.
+fail=0
+for pair in "REVIEW_LOOPS:$REVIEW_LOOPS" "MAX_ROUNDS:$MAX_ROUNDS" "MAX_SOURCES:$MAX_SOURCES"; do
+    name="${pair%%:*}"; value="${pair#*:}"
+    case "$value" in
+        ''|*[!0-9]*) echo "  $name must be a number, got '$value'" >&2; fail=1 ;;
+    esac
+done
+if [ "$fail" -eq 1 ]; then
+    echo >&2
+    echo "Nothing written. Run scripts/setup again and answer one field at a time." >&2
+    exit 1
+fi
+
+cat > "$CONF" <<EOF
+# deep-researcher — local setup. Written by scripts/setup; safe to hand-edit.
+# Gitignored on purpose: this describes YOUR machine, not this project.
+
+FIRECRAWL_API_URL="$FIRECRAWL_URL"
+
+# The model that does the research.
+RESEARCH_MODEL="$RESEARCH_MODEL"
+
+# Gate 8.4 — one model, re-researches independently. "off" to skip.
+SECOND_OPINION="$SECOND_OPINION"
+
+# Gate 8.5 — N models, critique the finished dossier. "off" to skip (not recommended).
+REVIEW_PANEL="$REVIEW_PANEL"
+REVIEW_LOOPS="$REVIEW_LOOPS"
+
+# Gate 5/6 loop ceiling. Stop condition, not a target.
+MAX_ROUNDS="$MAX_ROUNDS"
+MAX_SOURCES="$MAX_SOURCES"
+EOF
+
+echo "=== Wrote $CONF ==="
+sed 's/^/  /' "$CONF"
+echo
+echo "Run research:  scripts/deep-research-pi \"\$(cat prompts/examples/<a-prompt>.md)\""
+echo "Change setup:  scripts/setup"

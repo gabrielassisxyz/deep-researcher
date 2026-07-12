@@ -153,34 +153,29 @@ Ask this before other questions so the user does not assume the research is alre
 
 Ask:
 
-**First, find out what reviewers this machine actually has** — run
-`scripts/detect-reviewers`. Do not offer a model from an example or from memory: a reviewer
-that is not installed comes back `blocked`, and a panel of three that is really a panel of two
-still gets its consensus scored out of three. If the catalogue comes back empty, say so and
-skip both checks; that is an honest outcome, not a failure.
+**Read `.deep-research.conf` first.** It is written by `scripts/setup`, which detects what the
+machine has and asks the user what they want to use. If it exists, it already answers this
+gate: which model researches, whether a second opinion runs and which, whether a panel runs
+and which models, and the depth budget. **Copy those settings into `intake.md` and
+`research-contract.md` and move on — do not re-ask what the user has already decided.**
 
-Then ask, offering only what was detected:
+If `.deep-research.conf` does **not** exist, say so and tell the user to run `scripts/setup`.
+Do not improvise a catalogue from an example or from memory: a reviewer that is not installed
+comes back `blocked`, and a panel of three that is really a panel of two still gets its
+consensus scored out of three.
+
+Confirm rather than interrogate — one line, not an interview:
 
 ```text
-Two optional external checks, before I start.
-Available on this machine: <paste what detect-reviewers printed>
-
-1. Second opinion — ONE model re-researches the same questions from scratch, without
-   seeing my dossier. Catches what I never thought to look for. This is a whole second
-   research run, so it is the expensive check. Pick a different lineage than the one
-   doing the research.
-   Which model? (or skip — skipping is normal)
-
-2. Review panel — one or more models critique the finished dossier. Catches what I got
-   wrong. A finding two reviewers independently land on is almost certainly real.
-   Prefer different lineages over the best model three times.
-   Which models? (or skip)
-   How many loops? (default 1)
-
-   You may switch the panel off to save money. I will not recommend it: a review is one
-   read of a finished dossier — the cheapest check there is, and the last thing between a
-   confident, well-cited, wrong dossier and a decision made on it.
+Setup (.deep-research.conf): researching with <model>; second opinion <model|off>;
+review panel <models|off>, <N> loop(s); budget <R> rounds / <S> sources.
+Change anything for this run?
 ```
+
+If either check is **off**, that is the user's call and it is respected — but the dossier must
+**say** it went unreviewed, in `log.md` and in the final answer. An unreviewed dossier that
+never mentions it reads exactly like one that passed review, and that is the more dangerous of
+the two.
 
 The two attack different failures, and the asymmetry in how many models each gets is
 deliberate:
