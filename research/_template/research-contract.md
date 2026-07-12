@@ -64,6 +64,38 @@ List assumptions made from missing prompt details.
 
 List terms, scope edges, or evidence risks that may change the result.
 
+## Depth Budget
+
+The Gate 5/6 loop runs until every high-impact gap is `resolved` or `blocked`. This is the
+ceiling that stops it running forever — not a target to hit.
+
+- Maximum rounds: 6
+- Maximum sources: 40
+- On exhaustion: stop, and state the still-open high-impact gaps in `synthesis.md`, in
+  `log.md`, and in the final answer. Never let a budget-exhausted dossier read as complete.
+
+## Claim Types In Scope
+
+Which of the three does this research have to answer? (Gate 4.5)
+
+- [ ] **Fact** — existence, identifiers, price, availability. Vendor docs can settle these.
+- [ ] **Performance** — is A better than B. Needs independent evidence; vendor claims cap at `medium`.
+- [ ] **Fit** — is A right *for this user*. **Web evidence caps at `low`.** If this box is
+      ticked, the dossier's honest headline is likely "measure it locally", and the
+      deliverable should include the evaluation design, not a confident recommendation.
+
+## Second Opinion (independent triangulation)
+
+A second model researching the same question *independently*, whose disagreement with the
+first is treated as a finding. Distinct from the Gemini review below, which critiques a
+finished dossier and therefore inherits its blind spots.
+
+- Enabled: false
+- Model / harness:
+- Scope: the key research questions, answered without sight of the first dossier.
+- Stop condition: agreements raise confidence; disagreements become high-impact gaps and
+  re-enter the Gate 5/6 loop.
+
 ## Gemini Review
 
 - Enabled: false

@@ -13,7 +13,7 @@ If the user provides a target directory, use it exactly. If not, derive a lowerc
 
 Use optional domain folders only when they fit the research topic. Examples: `models/`, `products/`, `vendors/`, `papers/`, `entities/`, `concepts/`, `datasets/`, or `benchmarks/`. Do not create a folder just because an example mentions it.
 
-Before intake, ask whether the user wants an external Gemini review loop through `agy`, and if yes, ask for the maximum number of loops. Do this before any other interview question. In non-interactive runs, default to no Gemini review unless the request explicitly enables it and provides a maximum loop count.
+Before intake, ask which external checks to run — a **second opinion** (a different model researches the same questions independently; disagreement becomes a gap) and/or a **Gemini review loop** through `agy` (a skeptical critique of the finished dossier). They are complements: the second opinion attacks omission, the review attacks error. Ask before any other interview question. In non-interactive runs, default both to disabled unless the request explicitly enables them.
 
 ## Research Intake
 
@@ -51,9 +51,38 @@ The workflow must work even when the user's prompt is imperfect. Convert vague r
 - Highlighting when a cheaper or simpler option is sufficient.
 - Highlighting when a premium option is justified by evidence.
 
-## Gap Follow-Up
+## Depth Is A Loop, Not A Pass
 
-Classify gaps as high, medium, or low impact. If a high-impact gap could change the final decision or synthesis, run at least one targeted follow-up attempt before finalizing. Mark each high-impact gap as `resolved`, `partially resolved`, or `blocked`.
+Gates 5 and 6 **cycle**. Classify gaps as high, medium, or low impact; then keep looping —
+gap analysis, targeted search, re-analyse — until every high-impact gap is `resolved` or
+`blocked`. Those are the only two terminal states.
+
+`partially resolved` is **not** a status. It means the loop goes round again, with whatever
+is still missing as the next query. The only other way out is the depth budget in
+`research-contract.md` (default 6 rounds / 40 sources) running out — and that must be
+declared in the synthesis and the final answer, never quietly assumed.
+
+## Search Before You Scrape
+
+Discovery means calling Firecrawl's **search** tool (`firecrawl_search` under opencode,
+`mcp_firecrawl_firecrawl_search` under pi — list your tools and use whichever searches; if
+none exists, stop and say so rather than answering from memory).
+Scraping a URL the user already named is retrieval: it
+confirms the list you were given and never surfaces the option nobody mentioned. Issue at
+least 5 distinct queries before scraping, deliberately search for units of analysis the
+user did *not* name, and log every query — including the ones that found nothing — in the
+`log.md` search ledger. An unlogged query is indistinguishable from a query never run.
+
+## Claim Typing
+
+Before the gap analysis, type every claim that matters (Gate 4.5), because the source that
+settles one type is worthless for another:
+
+- **Fact** (it exists, it costs X) — vendor docs settle it. Ceiling `high`.
+- **Performance** (A is better than B) — needs independent evidence. **A vendor is not a
+  neutral witness about its own product**: official-source performance claims cap at `medium`.
+- **Fit** (A is right *for this user*) — **the web cannot settle it at all.** Ceiling `low`.
+  Name it as unanswerable and propose the local evaluation that would answer it.
 
 ## Depth And Confidence
 

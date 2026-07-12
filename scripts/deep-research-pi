@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Run the deep-research workflow through pi, against a model served by the local LiteLLM.
+#
+# WHY pi is worth a script of its own: it is the cheap harness. The whole point of routing
+# research to GLM-5.2 (or another LiteLLM-served model) is that a deep run makes dozens of
+# tool calls, and doing that on a frontier model costs real money for work that is mostly
+# fetching and summarising. Use the expensive harnesses when the *reasoning* is the hard
+# part; use this one for the legwork.
+#
+# pi reaches Firecrawl through the pi-mcp-extension (`pi install npm:pi-mcp-extension`),
+# configured by `.pi/mcp.json` in this repo. Without that extension pi has no web access at
+# all -- read, bash, edit, write and nothing else -- and the research prompt will (correctly)
+# refuse to proceed rather than write a dossier from the model's memory.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MODEL="${DEEP_RESEARCH_MODEL:-glm-5.2}"
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: scripts/deep-research-pi '<research request>'" >&2
+    echo "       DEEP_RESEARCH_MODEL=kimi-k2.7 scripts/deep-research-pi '<request>'" >&2
+    echo >&2
+    echo "Example (the golden prompt):" >&2
+    echo "  scripts/deep-research-pi \"\$(cat prompts/examples/self-hosted-coding-model-golden.md)\"" >&2
+    exit 2
+fi
+
+# Firecrawl shuts itself down under memory pressure and exits 0, so a dead API looks like a
+# clean stack. Check the search endpoint, not just liveness: a 200 on / only proves the
+# process is up, while search is the thing the research actually depends on.
+if ! curl -sf --max-time 5 -o /dev/null "${FIRECRAWL_API_URL:-http://localhost:3002}/"; then
+    echo "Firecrawl is not answering at ${FIRECRAWL_API_URL:-http://localhost:3002}." >&2
+    echo "Start it:  docker compose -f ~/firecrawl/docker-compose.yaml up -d api" >&2
+    exit 1
+fi
+
+cd "$ROOT"
+exec pi \
+    --provider litellm \
+    --model "$MODEL" \
+    --append-system-prompt "$ROOT/opencode/prompts/deep-research.md" \
+    "$(printf 'Follow the deep research workflow in your system prompt. User research request:\n\n%s\n' "$*")"

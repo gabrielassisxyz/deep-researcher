@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "toolPrefix": "mcp",
+    "requestTimeoutMs": 60000,
+    "maxRetries": 3
+  },
+  "mcpServers": {
+    "firecrawl": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_URL": "http://localhost:3002"
+      },
+      "lifecycle": "eager"
+    }
+  }
+}

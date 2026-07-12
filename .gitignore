@@ -6,3 +6,5 @@ docs-to-mcp/data/
 __pycache__/
 *.egg-info/
 
+
+# pi's MCP extension is per-user; the server config (.pi/mcp.json) IS committed.
