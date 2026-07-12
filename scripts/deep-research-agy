@@ -12,5 +12,5 @@ fi
 cd "$ROOT"
 agy \
   --add-dir "$ROOT" \
-  --prompt-interactive "$(printf 'Read and follow agy/prompts/deep-research.md. User research request:\n\n%s\n' "$*")"
+  --print "$(printf 'Read and follow agy/prompts/deep-research.md. User research request:\n\n%s\n' "$*")"
 

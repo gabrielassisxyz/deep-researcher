@@ -73,23 +73,23 @@ for reviewer in $PANEL; do
     case "$reviewer" in
         pi:*)
             (cd "$ROOT" && timeout 900 pi --print --provider litellm --model "${reviewer#pi:}" \
-                "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
+                "$(prompt_for "$reviewer")" >"$OUT/$name.stderr" 2>&1) && ok=true
             ;;
         claude:*)
             (cd "$ROOT" && timeout 900 claude --print --model "${reviewer#claude:}" \
-                --permission-mode acceptEdits "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
+                --permission-mode acceptEdits "$(prompt_for "$reviewer")" >"$OUT/$name.stderr" 2>&1) && ok=true
             ;;
         agy:flash)
             (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" --model "Gemini 3.5 Flash (High)" \
-                --prompt-interactive "$(prompt_for "$reviewer")" >/dev/null 2>&1) && ok=true
+                --print "$(prompt_for "$reviewer")" >"$OUT/$name.stderr" 2>&1) && ok=true
             ;;
         agy)
             (cd "$ROOT" && timeout 900 agy --add-dir "$ROOT" \
-                --prompt-interactive "$(prompt_for agy)" >/dev/null 2>&1) && ok=true
+                --print "$(prompt_for agy)" >"$OUT/$name.stderr" 2>&1) && ok=true
             ;;
         codex)
             (cd "$ROOT" && timeout 900 codex exec --cd "$ROOT" --sandbox danger-full-access \
-                "$(prompt_for codex)" >/dev/null 2>&1) && ok=true
+                "$(prompt_for codex)" >"$OUT/$name.stderr" 2>&1) && ok=true
             ;;
         *)
             echo "UNKNOWN — not in docs/reviewers.md"
@@ -100,8 +100,10 @@ for reviewer in $PANEL; do
         echo "ok"
     else
         echo "BLOCKED"
-        printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked, or produced no report.\n' \
-            "$reviewer" "$ROUND" "$reviewer" "$ROUND" > "$report"
+        # shellcheck disable=SC2016  # the %s are printf placeholders, not shell expansions
+        why="$(tail -3 "$OUT/$name.stderr" 2>/dev/null || echo "no output captured")"
+        printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked, or produced no report.\n\n```\n%s\n```\n' \
+            "$reviewer" "$ROUND" "$reviewer" "$ROUND" "$why" > "$report"
     fi
 done
 

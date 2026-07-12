@@ -78,3 +78,34 @@ independent look is the whole point, and the same family tends to miss the same 
 never silently dropped: a panel of three that quietly became a panel of two would still have
 its consensus scored against a denominator of three, and "two of three reviewers agree" would
 then mean something it does not mean.
+
+**Its stderr is captured next to its report** (`<reviewer>.stderr`), and the last lines are
+quoted in the blocked report itself. That is not a nicety — see below.
+
+## The TTY trap (this cost us an entire review)
+
+**Calling an agent CLI from a script is not the same as calling it from your terminal**, and
+the difference is invisible until it isn't.
+
+`agy` failed on every single panel run. Not the model, not the account, not a rate limit: the
+script called `agy --prompt-interactive`, and that mode opens a TTY through bubbletea. Inside a
+script there is no TTY, so it died instantly with:
+
+```
+CLI error: bubbletea: error opening TTY: could not open TTY: open /dev/tty: no such device
+```
+
+Nobody saw that message, because the panel discarded stderr. All anyone ever saw was `BLOCKED`
+— and a failure with no cause attached is a failure nobody ever fixes. It was written off as
+"agy is flaky".
+
+**The fix is one flag:** `--print` (alias `-p`) is the non-interactive mode. Belt and braces,
+redirect stdin too: `agy --print "..." </dev/null`.
+
+The rule generalises to every reviewer here:
+
+- **Use the harness's non-interactive flag.** `agy --print`, `claude --print`, `codex exec`,
+  `pi --print`. An interactive mode invoked from a script does not degrade gracefully; it dies.
+- **Never throw a subprocess's stderr away.** The reason it failed is the only thing that makes
+  it fixable, and you will not think to look for it later.
+

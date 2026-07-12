@@ -31,4 +31,4 @@ PROMPT
 
 agy \
   --add-dir "$ROOT" \
-  --prompt-interactive "$(cat "$PROMPT_FILE")"
+  --print "$(cat "$PROMPT_FILE")" </dev/null
