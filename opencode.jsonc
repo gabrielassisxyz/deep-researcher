@@ -42,20 +42,6 @@
         "bash": "allow",
         "webfetch": "allow"
       }
-    },
-    "docs-to-mcp": {
-      "mode": "primary",
-      "description": "Crawls a documentation site and builds a focused MCP server over the captured docs.",
-      "prompt": "{file:./opencode/prompts/docs-to-mcp.md}",
-      "tools": {
-        "firecrawl_*": true,
-        "context7_*": true
-      },
-      "permission": {
-        "edit": "allow",
-        "bash": "allow",
-        "webfetch": "allow"
-      }
     }
   }
 }

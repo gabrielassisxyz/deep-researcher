@@ -1,11 +1,11 @@
 # Deep Researcher Agent Instructions
 
-This repository defines OpenCode setups for two workflows:
+This repository defines a deep-research workflow: source-backed research on current
+topics, producing an auditable Markdown dossier. It runs under OpenCode, and has adapters
+for Claude Code, Codex, pi, and Antigravity.
 
-- Deep research on current, source-backed topics.
-- Documentation ingestion that turns a docs site into a focused MCP server.
-
-The deep research workflow also has adapters for Claude Code, Codex, and Antigravity.
+(Documentation ingestion — turning a docs site into an MCP server — used to live here and
+is now its own tool: https://github.com/gabrielassisxyz/docs-to-mcp)
 
 All generated files, comments, identifiers, prompts, and documentation in this repository must be written in English.
 
@@ -20,5 +20,4 @@ All generated files, comments, identifiers, prompts, and documentation in this r
 ## Agent Selection
 
 - Use `deep-research` for broad, current, multi-source research.
-- Use `docs-to-mcp` for crawling a documentation site, normalizing the pages, and building a small MCP interface over the captured docs.
 - Use `docs/agent-clis.md` when running the deep research workflow from Claude Code, Codex, or Antigravity.

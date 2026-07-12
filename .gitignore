@@ -1,6 +1,5 @@
 
 # Captured documentation corpora and local build artifacts.
-docs-to-mcp/data/
 .venv/
 __pycache__/
 *.egg-info/

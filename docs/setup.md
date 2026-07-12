@@ -3,7 +3,6 @@
 This repository provides two OpenCode agents:
 
 - `deep-research`: current, source-backed research using Firecrawl and Context7.
-- `docs-to-mcp`: documentation crawl and MCP-server generation.
 
 The same deep research workflow is also available for Claude Code, Codex, and Antigravity. See `docs/agent-clis.md`.
 
@@ -69,22 +68,6 @@ research/<topic-slug>/review/
 ```
 
 Use the phrase `quick mode` in the user request only when a short web-research answer is enough and a dossier is not needed.
-
-Run documentation-to-MCP work:
-
-```sh
-opencode run --agent docs-to-mcp "Create a docs MCP for https://opencode.ai/docs. Use slug opencode-docs."
-```
-
-The `docs-to-mcp` agent builds on a concrete Python pipeline in `docs-to-mcp/`
-(crawler + ingester + FTS5 index + FastMCP server). To run it directly:
-
-```sh
-uv run --project docs-to-mcp docs-to-mcp crawl https://opencode.ai/docs --slug opencode-docs --max-pages 40
-uv run --project docs-to-mcp docs-to-mcp serve --slug opencode-docs
-```
-
-See `docs-to-mcp/README.md` for the corpus layout, MCP tools, and the client entry.
 
 Check configured MCPs:
 
