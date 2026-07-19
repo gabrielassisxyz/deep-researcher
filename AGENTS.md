@@ -1,11 +1,8 @@
 # Deep Researcher Agent Instructions
 
-This repository defines a deep-research workflow: source-backed research on current
-topics, producing an auditable Markdown dossier. It runs under OpenCode, and has adapters
-for Claude Code, Codex, pi, and Antigravity.
+This repository defines a deep-research workflow: source-backed research on current topics, producing an auditable Markdown dossier. It runs under OpenCode, and has adapters for Claude Code, Codex, pi, and Antigravity.
 
-(Documentation ingestion — turning a docs site into an MCP server — used to live here and
-is now its own tool: https://github.com/gabrielassisxyz/docs-to-mcp)
+(Documentation ingestion — turning a docs site into an MCP server — used to live here and is now its own tool: https://github.com/gabrielassisxyz/docs-to-mcp)
 
 All generated files, comments, identifiers, prompts, and documentation in this repository must be written in English.
 
