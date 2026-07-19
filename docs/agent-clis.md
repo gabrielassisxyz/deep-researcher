@@ -30,9 +30,7 @@ Or run through the helper script:
 scripts/deep-research-claude "$(cat prompts/examples/llm-models-golden.md)"
 ```
 
-Claude Code reads project-scoped MCP servers from `.mcp.json`. The Firecrawl server reads
-`FIRECRAWL_API_URL` from the environment — self-hosted or hosted, whichever `scripts/setup`
-recorded.
+Claude Code reads project-scoped MCP servers from `.mcp.json`. The Firecrawl server reads `FIRECRAWL_API_URL` from the environment — self-hosted or hosted, whichever `scripts/setup` recorded.
 
 ## Codex
 
