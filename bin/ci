@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# The exact checks CI runs, runnable locally — so "green locally" == "green in CI".
+# The gates are: no secrets, shell scripts lint clean, and the consensus tests pass.
+# Keep this in sync with .github/workflows/ci.yml.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+fail=0
+
+echo "==> gitleaks (secret scan)"
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --no-banner --redact . || fail=1
+else
+    echo "gitleaks not installed — see https://github.com/gitleaks/gitleaks" >&2
+    fail=1
+fi
+
+echo "==> shellcheck (shell lint)"
+if command -v shellcheck >/dev/null 2>&1; then
+    # All tracked shell scripts: bin/, .githooks/, and scripts/. Selected by
+    # shebang, not by path — scripts/ holds Python too (scripts/consensus.py),
+    # and shellcheck errors out on those.
+    mapfile -t candidates < <(git ls-files 'bin/*' '.githooks/*' 'scripts/*')
+    scripts=()
+    for candidate in "${candidates[@]}"; do
+        case "$(head -1 "$candidate")" in
+            '#!'*sh|'#!'*sh\ *) scripts+=("$candidate") ;;
+        esac
+    done
+    if [ ${#scripts[@]} -gt 0 ]; then
+        shellcheck "${scripts[@]}" || fail=1
+    fi
+else
+    echo "SKIPPED: shellcheck not installed (install: https://www.shellcheck.net)" >&2
+fi
+
+echo "==> pytest (consensus tests)"
+if python3 -c 'import pytest' >/dev/null 2>&1; then
+    python3 -m pytest tests/ -q || fail=1
+else
+    echo "SKIPPED: pytest not installed (install: python3 -m pip install pytest)" >&2
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "==> bin/ci FAILED"
+    exit 1
+fi
+echo "==> bin/ci OK"
