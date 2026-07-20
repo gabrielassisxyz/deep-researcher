@@ -100,8 +100,8 @@ for reviewer in $PANEL; do
         echo "ok"
     else
         echo "BLOCKED"
-        # shellcheck disable=SC2016  # the %s are printf placeholders, not shell expansions
         why="$(tail -3 "$OUT/$name.stderr" 2>/dev/null || echo "no output captured")"
+        # shellcheck disable=SC2016  # the %s are printf placeholders, not shell expansions
         printf -- '---\ntype: external-review\nreviewer: %s\nround: %s\nstatus: blocked\nverdict: blocked\n---\n\n# Review — %s — Round %s\n\nReviewer could not be invoked, or produced no report.\n\n```\n%s\n```\n' \
             "$reviewer" "$ROUND" "$reviewer" "$ROUND" "$why" > "$report"
     fi
