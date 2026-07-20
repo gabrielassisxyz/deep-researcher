@@ -25,4 +25,8 @@ jobs:
                      scripts/install-firecrawl scripts/review-panel
 
       - name: consensus tests
-        run: python3 -m pytest tests/ -q
+        run: |
+          # The runner image ships Python without pytest, so the test step had
+          # never once executed here — it failed on import in every run.
+          python3 -m pip install --quiet pytest
+          python3 -m pytest tests/ -q
