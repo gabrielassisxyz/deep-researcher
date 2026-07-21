@@ -10,6 +10,20 @@
         "FIRECRAWL_API_URL": "${FIRECRAWL_API_URL}",
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
       }
+    },
+    "arxiv": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "mkdir -p .ai-jail/arxiv-papers && exec uvx arxiv-mcp-server --storage-path .ai-jail/arxiv-papers"
+      ]
+    },
+    "paper_search": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -a; [ -f local/paper-search-mcp.env ] && . local/paper-search-mcp.env; set +a; mkdir -p .ai-jail/papers && exec uv run --quiet --with paper-search-mcp python scripts/paper-search-mcp-safe"
+      ]
     }
   }
 }

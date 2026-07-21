@@ -30,7 +30,7 @@ Or run through the helper script:
 scripts/deep-research-claude "$(cat prompts/examples/llm-models-golden.md)"
 ```
 
-Claude Code reads project-scoped MCP servers from `.mcp.json`. The Firecrawl server reads `FIRECRAWL_API_URL` from the environment — self-hosted or hosted, whichever `scripts/setup` recorded.
+Claude Code reads project-scoped MCP servers from `.mcp.json`. The Firecrawl server reads `FIRECRAWL_API_URL` from the environment (self-hosted or hosted, whichever `scripts/setup` recorded). The same file also configures `arxiv` and `paper_search` for paper research. See `docs/paper-mcps.md`.
 
 ## Codex
 
@@ -42,7 +42,7 @@ Run through the helper script:
 scripts/deep-research-codex "$(cat prompts/examples/llm-models-golden.md)"
 ```
 
-Codex MCP configuration is user-level. If Firecrawl is not already configured, add it once:
+The helper script injects the `arxiv` and `paper_search` MCPs for this repository at runtime. Codex MCP configuration is otherwise user-level. If Firecrawl is not already configured, add it once:
 
 ```sh
 codex mcp add firecrawl \
@@ -56,6 +56,8 @@ Check:
 ```sh
 codex mcp list
 ```
+
+For interactive Codex paper-research sessions outside the helper script, see `docs/paper-mcps.md`.
 
 ## Antigravity
 
