@@ -7,10 +7,11 @@
 # fetching and summarising. Use the expensive harnesses when the *reasoning* is the hard
 # part; use this one for the legwork.
 #
-# pi reaches Firecrawl through the pi-mcp-extension (`pi install npm:pi-mcp-extension`),
-# configured by `.pi/mcp.json` in this repo. Without that extension pi has no web access at
-# all -- read, bash, edit, write and nothing else -- and the research prompt will (correctly)
-# refuse to proceed rather than write a dossier from the model's memory.
+# pi reaches Firecrawl and academic-paper MCPs through the pi-mcp-extension
+# (`pi install npm:pi-mcp-extension`), configured by `.pi/mcp.json` in this repo. Without
+# that extension pi has no source access at all -- read, bash, edit, write and nothing else
+# -- and the research prompt will (correctly) refuse to proceed rather than write a dossier
+# from the model's memory.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -59,6 +60,18 @@ cat > "$ROOT/.pi/mcp.json" <<EOF
         "FIRECRAWL_API_URL": "$FIRECRAWL_API_URL",
         "FIRECRAWL_API_KEY": "$FIRECRAWL_API_KEY"
       },
+      "lifecycle": "eager"
+    },
+    "arxiv": {
+      "transport": "stdio",
+      "command": "bash",
+      "args": ["-lc", "mkdir -p .ai-jail/arxiv-papers && exec uvx arxiv-mcp-server --storage-path .ai-jail/arxiv-papers"],
+      "lifecycle": "eager"
+    },
+    "paper_search": {
+      "transport": "stdio",
+      "command": "bash",
+      "args": ["-lc", "set -a; [ -f local/paper-search-mcp.env ] && . local/paper-search-mcp.env; set +a; mkdir -p .ai-jail/papers && exec uv run --quiet --with paper-search-mcp python scripts/paper-search-mcp-safe"],
       "lifecycle": "eager"
     }
   }
