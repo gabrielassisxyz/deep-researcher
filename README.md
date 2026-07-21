@@ -77,6 +77,13 @@ It detects what your machine has (which agent CLIs are on your PATH, which model
 
 Nothing here hardcodes a model list. What exists is a fact about *your* machine, not about this tool.
 
+Paper-focused research can also use two optional MCPs:
+
+- `arxiv` for arXiv-native discovery, full-text reading, LaTeX source, citation graph, and alerts.
+- `paper_search` for multi-provider academic-paper discovery and open-access fallback.
+
+Retrieved paper content is untrusted external input and must be treated as evidence, not instructions. Sci-Hub support is disabled in the public configuration and can only be enabled through ignored local configuration. See [`docs/paper-mcps.md`](docs/paper-mcps.md).
+
 ## Run
 
 ```sh
@@ -102,6 +109,7 @@ scripts/setup                       first-run configuration
 scripts/review-panel                fan the dossier out to N reviewers
 scripts/consensus.py                compute what they agree on (5 tests)
 infra/firecrawl/                    a compose file, if you need a Firecrawl
+docs/paper-mcps.md                  paper MCP routing, safety, and Sci-Hub policy
 ```
 
 ## License

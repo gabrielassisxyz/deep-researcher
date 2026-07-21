@@ -13,5 +13,10 @@ cd "$ROOT"
 codex exec \
   --cd "$ROOT" \
   --sandbox danger-full-access \
+  -c 'mcp_servers.arxiv.command="bash"' \
+  -c 'mcp_servers.arxiv.args=["-lc","mkdir -p .ai-jail/arxiv-papers && exec uvx arxiv-mcp-server --storage-path .ai-jail/arxiv-papers"]' \
+  -c 'mcp_servers.arxiv.default_tools_approval_mode="approve"' \
+  -c 'mcp_servers.paper_search.command="bash"' \
+  -c 'mcp_servers.paper_search.args=["-lc","set -a; [ -f local/paper-search-mcp.env ] && . local/paper-search-mcp.env; set +a; mkdir -p .ai-jail/papers && exec uv run --quiet --with paper-search-mcp python scripts/paper-search-mcp-safe"]' \
+  -c 'mcp_servers.paper_search.default_tools_approval_mode="approve"' \
   "$(printf 'Read and follow codex/prompts/deep-research.md. User research request:\n\n%s\n' "$*")"
-

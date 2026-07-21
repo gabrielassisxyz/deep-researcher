@@ -30,4 +30,5 @@ infra/firecrawl/.env
 # Environment secrets and the per-machine agent sandbox config.
 .env
 .ai-jail
+downloads
 # <<< repo-harness:gitignore-private-boundary <<<

@@ -19,7 +19,14 @@ The root `opencode.jsonc` configures:
 - `firecrawl` as a local MCP launched through `npx -y firecrawl-mcp`, pointing at whatever `FIRECRAWL_API_URL` names — your own instance (`scripts/install-firecrawl`) or the hosted API at firecrawl.dev. `scripts/setup` asks which you want and writes it down.
 - `context7` as a remote MCP at `https://mcp.context7.com/mcp`.
 
-Both MCPs are disabled globally through tool globs and enabled only for the two custom agents.
+Both OpenCode MCPs are disabled globally through tool globs and enabled only for the custom research agent.
+
+Claude Code and Codex can also use:
+
+- `arxiv` for arXiv-native paper search, download/read, LaTeX, citation graph, and alerts.
+- `paper_search` for multi-provider academic-paper discovery and open-access fallback.
+
+For Claude Code and Codex details, including Sci-Hub opt-in and prompt-injection safety rules, see `docs/paper-mcps.md`.
 
 ## Usage
 
