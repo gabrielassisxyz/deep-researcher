@@ -41,6 +41,9 @@ else
     echo "SKIPPED: pytest not installed (install: python3 -m pip install pytest)" >&2
 fi
 
+# anti-slop gate: em-dash in prose + the tool-name leak. Canonical: llm-workflow bin/slop-guard.
+echo "==> slop-guard"; bin/slop-guard || fail=1
+
 if [ "$fail" -ne 0 ]; then
     echo "==> bin/ci FAILED"
     exit 1
